@@ -1,11 +1,15 @@
-"""Background coder agent implementation (Issue → PR)."""
+"""后台 Coding Agent 实现（Issue -> PR）。
+
+本类只负责把 Issue 上下文组装成 Prompt，并把通用能力交给 BaseAgent；具体文件、Git、
+测试等操作由注入的 ToolManager 完成，Sandbox 与 PR 则由外层 Celery task 管理。
+"""
 
 from app.agents.base import BaseAgent
 from app.agents.prompts.coder_prompt import build_coder_prompt
 
 
 class BackgroundAgent(BaseAgent):
-    """Autonomous coding agent for solving GitHub issues."""
+    """根据 GitHub Issue 自主修改 Repository 的 Coding Agent。"""
 
     def __init__(
         self,
@@ -19,20 +23,20 @@ class BackgroundAgent(BaseAgent):
         llm_client,
         **kwargs,
     ):
-        """Initialize background agent.
+        """初始化后台 Coding Agent。
 
         Args:
-            agent_id: Unique agent ID
-            repository: Repository name (owner/repo)
-            issue_number: GitHub issue number
-            issue_title: Issue title
-            issue_body: Issue description
-            custom_instructions: User-defined instructions
-            tools: ToolManager with coder tools
-            llm_client: OpenAI client
-            **kwargs: Additional args for BaseAgent (max_iterations, etc.)
+            agent_id: Agent 唯一 ID
+            repository: Repository 名称（owner/repo）
+            issue_number: GitHub Issue 编号
+            issue_title: Issue 标题
+            issue_body: Issue 描述
+            custom_instructions: 用户补充指令
+            tools: 已注册 Coding Tool 的 ToolManager
+            llm_client: OpenAI 客户端
+            **kwargs: 传给 BaseAgent 的预算等附加参数
         """
-        # Build prompts (returns system_prompt, user_context tuple)
+        # Prompt builder 分离稳定规则与当前 Issue 上下文。
         system_prompt, initial_user_message = build_coder_prompt(
             repository=repository,
             issue_number=issue_number,
@@ -41,7 +45,7 @@ class BackgroundAgent(BaseAgent):
             custom_instructions=custom_instructions,
         )
 
-        # Initialize base agent
+        # 通用的消息状态、LLM 调用与 Tool Calling 由 BaseAgent 初始化。
         super().__init__(
             agent_id=agent_id,
             system_prompt=system_prompt,

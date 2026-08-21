@@ -1,8 +1,7 @@
-"""User model for GitHub OAuth authenticated users.
+"""通过 GitHub OAuth 认证的 User 模型。
 
-Users authenticate via GitHub OAuth and can manage multiple GitHub App
-installations across different repositories and organizations. Each user
-has encrypted access tokens for GitHub API calls and tracks login activity.
+用户可管理不同 Repository 或组织上的多个 GitHub App Installation；用于 GitHub API 的
+access token 加密保存，同时记录账户状态与登录活动。
 """
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
@@ -13,16 +12,15 @@ from app.db.base_class import BaseModel
 
 
 class User(Base, BaseModel):
-    """User account authenticated via GitHub OAuth.
+    """通过 GitHub OAuth 认证的用户账户。
 
-    Stores user profile information from GitHub and encrypted OAuth tokens
-    for API access. One user can have multiple GitHub App installations.
-    All OAuth tokens are encrypted at the application layer before storage.
+    保存 GitHub 用户资料与加密 OAuth token。一个用户可关联多个 GitHub App
+    Installation；所有 OAuth token 均在应用层加密后再入库。
     """
 
     __tablename__ = "users"
 
-    # GitHub profile
+    # GitHub 用户资料。
     github_id = Column(
         Integer,
         unique=True,
@@ -34,19 +32,19 @@ class User(Base, BaseModel):
     email = Column(String(255), nullable=True)
     avatar_url = Column(String(500), nullable=True)
 
-    # OAuth tokens
+    # 应用层加密后的 OAuth token。
     access_token = Column(String(500), nullable=False, comment="Encrypted GitHub OAuth token")
     refresh_token = Column(String(500), nullable=True, comment="Encrypted refresh token")
 
-    # Account status
+    # 账户状态与登录时间。
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Relationships
+    # ORM 关系。
     installations = relationship(
         "Installation", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
-        """String representation for debugging."""
+        """返回便于日志调试的字符串表示。"""
         return f"<User(id={self.id}, username={self.username}, github_id={self.github_id})>"

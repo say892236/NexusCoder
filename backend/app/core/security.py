@@ -1,6 +1,6 @@
-"""Security utilities for authentication and token management.
+"""认证与 token 管理的安全辅助函数。
 
-Provides JWT token generation/validation, OAuth token encryption, and CSRF protection.
+提供 JWT 生成与校验、OAuth token 对称加解密等能力。
 """
 
 from datetime import datetime, timedelta, timezone
@@ -11,15 +11,14 @@ from cryptography.fernet import Fernet
 
 from app.core.config import settings
 
-# Fernet cipher for OAuth token encryption
+# Fernet 用于 OAuth token 的应用层对称加密。
 cipher_suite = Fernet(settings.ENCRYPTION_KEY.encode())
 
 
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
-    """Create JWT access token with optional custom expiration.
+    """创建可指定过期时间的 JWT access token。
 
-    Encodes user data into a signed JWT token.
-    Uses HS256 algorithm with SECRET_KEY for signing.
+    把用户声明编码为 JWT，并使用 SECRET_KEY 与 HS256 签名。
     """
     to_encode = data.copy()
 
@@ -45,7 +44,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
 
 
 def create_refresh_token(user_id: str) -> str:
-    """Create refresh token for obtaining new access tokens."""
+    """创建用于换取新 access token 的 refresh token。"""
     expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = {
         "sub": str(user_id),
@@ -61,10 +60,9 @@ def create_refresh_token(user_id: str) -> str:
 
 
 def verify_token(token: str) -> dict[str, Any]:
-    """Verify and decode JWT token.
+    """校验并解码 JWT。
 
-    Raises ValueError if token is invalid, expired, or tampered with.
-    Returns the decoded payload containing user_id and expiration.
+    token 无效、过期或被篡改时抛出 ValueError；成功时返回包含 user_id 与过期时间的 payload。
     """
     try:
         payload: dict[str, Any] = jwt.decode(
@@ -76,18 +74,18 @@ def verify_token(token: str) -> dict[str, Any]:
 
 
 def encrypt_token(token: str) -> str:
-    """Encrypt OAuth token before storing in database.
+    """OAuth token 入库前使用 Fernet 加密。
 
-    Uses Fernet symmetric encryption to protect tokens.
+    数据库只保存密文，降低明文 token 泄露风险。
     """
     encrypted: bytes = cipher_suite.encrypt(token.encode())
     return encrypted.decode()
 
 
 def decrypt_token(encrypted_token: str) -> str:
-    """Decrypt OAuth token from database.
+    """解密数据库中的 OAuth token。
 
-    Reverses the encryption to get the original GitHub access token.
+    仅在服务端调用 GitHub API 前恢复原始 token。
     """
     decrypted: bytes = cipher_suite.decrypt(encrypted_token.encode())
     return decrypted.decode()

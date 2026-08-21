@@ -1,10 +1,10 @@
-"""Process and command execution tools using Daytona SDK."""
+"""通过 Daytona SDK 在 Sandbox Runtime 中执行进程与命令的 Tool。"""
 
 from app.agents.tools.base import BaseTool, ToolDefinition, ToolResult
 
 
 class RunCommandTool(BaseTool):
-    """Execute shell commands in sandbox."""
+    """在 Sandbox 中执行 shell 命令。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -34,7 +34,7 @@ class RunCommandTool(BaseTool):
     async def execute(
         self, command: str, cwd: str = "workspace/repo", timeout: int = 30, **kwargs
     ) -> ToolResult:
-        """Execute command using Daytona process.exec()."""
+        """通过 ``Daytona process.exec()`` 执行命令。"""
         try:
             response = self.sandbox.process.exec(command=command, cwd=cwd, timeout=timeout)
 
@@ -48,7 +48,7 @@ class RunCommandTool(BaseTool):
 
 
 class RunCodeTool(BaseTool):
-    """Execute code directly (Python/TypeScript/JavaScript)."""
+    """直接执行 Python、TypeScript 或 JavaScript 代码。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -69,7 +69,7 @@ class RunCodeTool(BaseTool):
         )
 
     async def execute(self, code: str, timeout: int = 30, **kwargs) -> ToolResult:
-        """Execute code using Daytona process.code_run()."""
+        """通过 ``Daytona process.code_run()`` 执行代码片段。"""
         try:
             response = self.sandbox.process.code_run(code)
 
@@ -83,7 +83,7 @@ class RunCodeTool(BaseTool):
 
 
 class RunTestsTool(BaseTool):
-    """Run test suite."""
+    """运行 Repository 测试套件。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -108,13 +108,13 @@ class RunTestsTool(BaseTool):
         )
 
     async def execute(self, test_path: str = ".", framework: str = "auto", **kwargs) -> ToolResult:
-        """Execute tests using Daytona process.exec()."""
+        """通过 ``Daytona process.exec()`` 运行测试命令。"""
         try:
-            # Auto-detect framework if specified
+            # auto 模式当前使用 pytest 作为默认测试框架。
             if framework == "auto":
-                framework = "pytest"  # Default to pytest for now
+                framework = "pytest"  # 当前默认值。
 
-            # Build command
+            # 根据 framework 和测试路径拼装命令。
             if framework == "pytest":
                 command = f"pytest {test_path} -v"
             elif framework == "jest":
@@ -127,7 +127,7 @@ class RunTestsTool(BaseTool):
             response = self.sandbox.process.exec(
                 command=command,
                 cwd="workspace/repo",
-                timeout=120,  # Tests can take longer
+                timeout=120,  # 测试通常比普通命令耗时更长。
             )
 
             return ToolResult(
@@ -144,7 +144,7 @@ class RunTestsTool(BaseTool):
 
 
 class RunLinterTool(BaseTool):
-    """Run code linter."""
+    """运行 Repository 的代码 linter。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -169,12 +169,12 @@ class RunLinterTool(BaseTool):
         )
 
     async def execute(self, path: str = ".", linter: str = "auto", **kwargs) -> ToolResult:
-        """Execute linter using Daytona process.exec()."""
+        """通过 ``Daytona process.exec()`` 运行 lint 命令。"""
         try:
             if linter == "auto":
-                linter = "ruff"  # Default
+                linter = "ruff"  # auto 模式的当前默认值。
 
-            # Build command
+            # 根据 linter 和目标路径拼装命令。
             if linter == "ruff":
                 command = f"ruff check {path}"
             elif linter == "eslint":

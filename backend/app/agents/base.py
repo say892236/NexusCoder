@@ -1,4 +1,9 @@
-"""Base classes for all agent types."""
+"""所有 Agent 共用的状态模型与单轮执行骨架。
+
+``BaseAgent.run()`` 展示了核心 Tool Calling：把消息与 Tool schema 交给 LLM，解析
+返回的 tool_calls，通过 ToolManager 执行，再将 ToolResult 以 ``role=tool`` 写回消息历史，
+供下一轮 LLM 继续推理。完成类 Tool 会显式终止循环并产出结构化结果。
+"""
 
 import json
 import logging
@@ -16,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class AgentStatus(str, Enum):
-    """Agent execution status."""
+    """Agent 在内存执行过程中的状态。"""
 
     PENDING = "pending"
     EXECUTING = "executing"
@@ -25,7 +30,7 @@ class AgentStatus(str, Enum):
 
 
 class AgentState(BaseModel):
-    """Persistent agent state for tracking execution."""
+    """记录迭代、资源消耗、消息历史与最终结果的 Agent 状态。"""
 
     agent_id: str
     status: AgentStatus = AgentStatus.PENDING
@@ -41,7 +46,7 @@ class AgentState(BaseModel):
 
 
 class BaseAgent(ABC):
-    """Base class for all agent types."""
+    """封装 LLM 调用、Tool Calling 和停止条件的 Agent 基类。"""
 
     def __init__(
         self,
@@ -55,18 +60,18 @@ class BaseAgent(ABC):
         max_tool_calls: int = 100,
         max_duration_seconds: int = 300,
     ):
-        """Initialize agent.
+        """初始化 Agent 的 Prompt、Tool、LLM 客户端与资源预算。
 
         Args:
-            agent_id: Unique agent ID
-            system_prompt: System prompt for the agent
-            initial_user_message: Initial user message with task context
-            tools: ToolManager instance
-            llm_client: OpenAI client for LLM calls
-            max_iterations: Maximum iterations allowed
-            max_tokens: Maximum tokens allowed
-            max_tool_calls: Maximum tool calls allowed
-            max_duration_seconds: Maximum duration in seconds
+            agent_id: Agent 的唯一 ID
+            system_prompt: 约束 Agent 行为的 system Prompt
+            initial_user_message: 携带任务上下文的首条用户消息
+            tools: ToolManager 实例
+            llm_client: 发起 LLM 调用的 OpenAI 客户端
+            max_iterations: 最大迭代轮数
+            max_tokens: 最大 token 用量
+            max_tool_calls: 最大 Tool 调用次数
+            max_duration_seconds: 最大执行时长（秒）
         """
         self.agent_id = agent_id
         self.system_prompt = system_prompt
@@ -78,21 +83,21 @@ class BaseAgent(ABC):
         self.max_tool_calls = max_tool_calls
         self.max_duration_seconds = max_duration_seconds
 
-        # Initialize state
+        # 初始化状态，并用 system/user 两条消息建立首次 LLM 调用上下文。
         self.state = AgentState(agent_id=agent_id)
         self.state.messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": initial_user_message},
         ]
 
-        # Setup file logging
+        # 每个 Agent 单独记录文件日志，便于按 agent_id 复盘。
         self.agent_logger = setup_agent_logger(agent_id)
 
     async def run(self) -> bool:
-        """Execute one iteration.
+        """执行一轮 LLM -> Tool -> Message History。
 
         Returns:
-            True if should continue, False if task is complete
+            未完成时返回 True；完成 Tool 发出终止信号时返回 False。
         """
         self.state.iteration += 1
         self.state.last_update = time.time()
@@ -101,7 +106,7 @@ class BaseAgent(ABC):
         self.agent_logger.debug(f"Agent {self.agent_id} - Iteration {self.state.iteration}")
 
         try:
-            # Call LLM with function calling
+            # 将历史消息和全部 Tool schema 发给 LLM，由模型选择是否调用 Tool。
             response = self.llm.chat.completions.create(
                 model=settings.MODEL_NAME,
                 messages=self.state.messages,
@@ -111,7 +116,7 @@ class BaseAgent(ABC):
 
             message = response.choices[0].message
 
-            # Count actual tokens from OpenAI response
+            # 以响应 usage 为准累计真实 token 消耗，而不是本地估算。
             if hasattr(response, "usage") and response.usage:
                 tokens_this_call = response.usage.total_tokens
                 self.state.tokens_used += tokens_this_call
@@ -119,15 +124,15 @@ class BaseAgent(ABC):
                     f"Tokens: {tokens_this_call} - this call, {self.state.tokens_used} total"
                 )
 
-            # Extract content and tool calls
+            # 同时提取自然语言内容和结构化 tool_calls。
             content = message.content or ""
             tool_calls_data = self._extract_tool_calls(response)
 
-            # Log content
+            # 文本内容只用于诊断；真正的环境操作由 Tool 执行。
             if content:
                 self.agent_logger.debug(f"Agent Response Content: {content[:200]}")
 
-            # Execute tools if any
+            # 一次响应可包含多个 Tool call，ToolManager 会并发执行它们。
             if tool_calls_data:
                 self.agent_logger.debug(
                     f"Agent made {len(tool_calls_data)} Tool Calls: {[tc['name'] for tc in tool_calls_data]}"
@@ -136,20 +141,20 @@ class BaseAgent(ABC):
                 self.state.tool_calls_made += len(tool_calls_data)
                 self._log_tool_execution_details(tool_calls_data, results)
 
-                # Check for completion signal
+                # finish_review/finish_task 等完成 Tool 会携带 completed 信号。
                 if self._is_complete(results):
                     self.state.status = AgentStatus.COMPLETED
                     self.state.result = self._extract_final_result(results)
                     self.agent_logger.debug(f"Agent {self.agent_id} completed task")
-                    return False  # Stop
+                    return False  # 完成 Tool 已返回结构化结果，停止当前 Agent。
 
-                # Add tool results to messages
+                # 把每个 ToolResult 写回消息历史，下一轮 LLM 才能看到执行结果。
                 self._add_tool_results_to_messages(tool_calls_data, results)
 
             else:
-                # No tool calls
+                # 没有 Tool call 时保留 assistant 文本，让对话仍能继续。
                 self.agent_logger.debug(f"Agent {self.agent_id} made no tool calls")
-                # Add assistant message to continue conversation
+                # 追加 assistant 消息后进入下一轮。
                 if content:
                     self.state.messages.append({"role": "assistant", "content": content})
 
@@ -162,30 +167,30 @@ class BaseAgent(ABC):
             return False
 
     def should_stop(self) -> bool:
-        """Check if agent should stop based on limits.
+        """根据完成状态与资源预算判断是否停止 Agent。
 
         Returns:
-            True if should stop, False if should continue
+            需要停止时返回 True，否则返回 False。
         """
-        # Already completed or failed
+        # 已完成或失败的 Agent 不再进入下一轮。
         if self.state.status in (AgentStatus.COMPLETED, AgentStatus.FAILED):
             return True
 
-        # Max iterations
+        # 迭代轮数上限。
         if self.state.iteration >= self.max_iterations:
             logger.warning(f"Agent {self.agent_id} reached max iterations: {self.state.iteration}")
             self.state.status = AgentStatus.COMPLETED
             self.state.result = {"reason": "max_iterations_reached"}
             return True
 
-        # Max tokens
+        # token 预算上限。
         if self.state.tokens_used >= self.max_tokens:
             logger.warning(f"Agent {self.agent_id} reached max tokens: {self.state.tokens_used}")
             self.state.status = AgentStatus.COMPLETED
             self.state.result = {"reason": "max_tokens_reached"}
             return True
 
-        # Max tool calls
+        # Tool 调用次数上限。
         if self.state.tool_calls_made >= self.max_tool_calls:
             logger.warning(
                 f"Agent {self.agent_id} reached max tool calls: {self.state.tool_calls_made}"
@@ -194,7 +199,7 @@ class BaseAgent(ABC):
             self.state.result = {"reason": "max_tool_calls_reached"}
             return True
 
-        # Max duration
+        # 总执行时长上限。
         elapsed = time.time() - self.state.start_time
         if elapsed >= self.max_duration_seconds:
             logger.warning(f"Agent {self.agent_id} reached max duration: {elapsed:.2f}s")
@@ -205,7 +210,7 @@ class BaseAgent(ABC):
         return False
 
     def _extract_tool_calls(self, llm_response) -> list[dict[str, Any]]:
-        """Extract tool calls from LLM response."""
+        """把 LLM 响应中的 tool_calls 规范化为 ToolManager 所需结构。"""
         message = llm_response.choices[0].message
         if not message.tool_calls:
             return []
@@ -222,29 +227,29 @@ class BaseAgent(ABC):
         return tool_calls
 
     def _is_complete(self, tool_results: dict) -> bool:
-        """Check if any tool result signals completion.
+        """检查是否有 ToolResult 发出任务完成信号。
 
         Args:
-            tool_results: Dict of tool call ID -> ToolResult
+            tool_results: Tool call ID 到 ToolResult 的映射
 
         Returns:
-            True if completion tool was called
+            调用了完成 Tool 时返回 True
         """
         for result in tool_results.values():
             if result.success and result.data:
-                # Check for completion signals
+        # 约定由 metadata.type=completion 且 data.completed=true 表示完成。
                 if isinstance(result.data, dict) and result.data.get("completed"):
                     return True
         return False
 
     def _extract_final_result(self, tool_results: dict) -> dict[str, Any]:
-        """Extract final result from completion tool.
+        """从完成 Tool 中提取要持久化的最终结构化结果。
 
         Args:
-            tool_results: Dict of tool call ID -> ToolResult
+            tool_results: Tool call ID 到 ToolResult 的映射
 
         Returns:
-            Final result data
+            最终结果数据
         """
         for result in tool_results.values():
             if result.success and result.data:
@@ -253,13 +258,13 @@ class BaseAgent(ABC):
         return {}
 
     def _add_tool_results_to_messages(self, tool_calls: list, results: dict) -> None:
-        """Add tool calls and results to message history.
+        """按 OpenAI Tool Calling 协议把调用及结果加入消息历史。
 
         Args:
-            tool_calls: List of tool call dicts
-            results: Dict of tool call ID -> ToolResult
+            tool_calls: Tool call 字典列表
+            results: Tool call ID 到 ToolResult 的映射
         """
-        # Add assistant message with tool calls
+        # 先写入带 tool_calls 的 assistant 消息，建立调用关系。
         self.state.messages.append(
             {
                 "role": "assistant",
@@ -278,7 +283,7 @@ class BaseAgent(ABC):
             }
         )
 
-        # Add tool results
+        # 再为每个 call_id 写入对应的 role=tool 结果消息。
         for tc in tool_calls:
             result = results.get(tc["id"])
             content = json.dumps(result.model_dump() if result else {"error": "No result"})
@@ -292,7 +297,7 @@ class BaseAgent(ABC):
             )
 
     def _log_tool_execution_details(self, tool_calls: list, results: dict) -> None:
-        """Log detailed per-tool execution diagnostics for debugging."""
+        """记录每个 Tool 的参数、结果与元数据，便于定位执行问题。"""
         for tc in tool_calls:
             result = results.get(tc["id"])
             if not result:

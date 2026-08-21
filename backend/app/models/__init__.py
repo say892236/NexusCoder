@@ -1,12 +1,10 @@
-"""Database models package for the Metis code reviewer.
+"""Metis Code Review 系统的数据库模型包。
 
-Contains all SQLAlchemy ORM models representing the database schema including
-users, GitHub installations, code reviews, review comments, usage metrics,
-and webhook event audit logs. Models use async SQLAlchemy patterns and include
-proper relationships, indexes, and constraints for data integrity and performance.
+集中导出 SQLAlchemy ORM 模型，包括用户、GitHub Installation、Review、ReviewComment
+与 AgentRun；关系、索引和约束共同保证数据完整性与查询性能。
 """
 
-# Import all models so SQLAlchemy can resolve string relationships
+# 集中导入模型，使 SQLAlchemy 能解析 relationship 中的字符串类名。
 from app.models.agent_run import AgentRun
 from app.models.installation import Installation
 from app.models.review import Review, ReviewComment

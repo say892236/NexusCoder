@@ -1,8 +1,6 @@
-"""User repository for database operations on User model.
+"""User model 的数据访问 Repository。
 
-Provides data access methods for creating, reading, and updating users
-with GitHub OAuth data. Handles token encryption/decryption automatically
-and includes queries for finding users by GitHub ID, username, or UUID.
+封装 GitHub OAuth 用户的创建、读取与更新，并在数据边界统一处理 token 加解密。
 """
 
 from datetime import datetime, timezone
@@ -16,11 +14,11 @@ from app.models.user import User
 
 
 class UserRepository:
-    """Data access layer for User model."""
+    """User model 的数据访问层。"""
 
     @staticmethod
     async def get_by_id(db: AsyncSession, user_id: UUID | str) -> User | None:
-        """Get user by UUID.
+        """按 UUID 查询 User。
 
         Args:
             db: Database session
@@ -34,11 +32,9 @@ class UserRepository:
 
     @staticmethod
     async def get_by_github_id(db: AsyncSession, github_id: int) -> User | None:
-        """Get user by GitHub ID (for OAuth login).
+        """按 GitHub ID 查询 User，主要用于 OAuth 登录。
 
-        This is the primary lookup during OAuth authentication - we check
-        if a user with this GitHub ID already exists in our database before
-        deciding whether to create a new user or update an existing one.
+        OAuth 认证时先用稳定的 GitHub ID 查询，再决定创建新用户还是更新现有用户。
 
         Args:
             db: Database session
@@ -52,7 +48,7 @@ class UserRepository:
 
     @staticmethod
     async def get_all_active(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[User]:
-        """Get all active users with pagination.
+        """分页查询全部 active User。
 
         Args:
             db: Database session
@@ -77,10 +73,9 @@ class UserRepository:
         access_token: str,
         refresh_token: str | None = None,
     ) -> User:
-        """Create new user from GitHub OAuth data.
+        """根据 GitHub OAuth 数据创建 User。
 
-        Automatically encrypts OAuth tokens before storing in database
-        and sets is_active=True and last_login_at to current time.
+        OAuth token 入库前自动加密，并初始化 active 状态与最近登录时间。
 
         Args:
             db: Database session
@@ -106,8 +101,8 @@ class UserRepository:
         )
 
         db.add(user)
-        await db.flush()  # Assign ID without committing transaction
-        await db.refresh(user)  # Refresh to get generated fields (id, timestamps)
+        await db.flush()  # 分配 ID，但仍由外层控制事务提交。
+        await db.refresh(user)  # 读取 ID、时间戳等数据库生成字段。
 
         return user
 
@@ -118,10 +113,9 @@ class UserRepository:
         access_token: str,
         refresh_token: str | None = None,
     ) -> User:
-        """Update user's OAuth tokens (on refresh or re-login).
+        """在刷新或重新登录时更新用户 OAuth token。
 
-        Encrypts new tokens and updates last_login timestamp to track
-        user activity. Call this when user logs in again or refreshes tokens.
+        加密新 token 并更新最近登录时间，用于重新登录或 token 刷新场景。
 
         Args:
             db: Database session
@@ -149,7 +143,7 @@ class UserRepository:
         username: str | None = None,
         email: str | None = None,
     ) -> User:
-        """Update user profile information.
+        """更新 User 资料。
 
         Args:
             db: Database session
@@ -172,9 +166,9 @@ class UserRepository:
 
     @staticmethod
     async def deactivate(db: AsyncSession, user: User) -> User:
-        """Deactivate user account (soft delete).
+        """软停用 User 账户。
 
-        Sets is_active=False instead of deleting the record.
+        仅设置 ``is_active=False``，不物理删除记录。
 
         Args:
             db: Database session
@@ -192,11 +186,9 @@ class UserRepository:
 
     @staticmethod
     def get_decrypted_access_token(user: User) -> str:
-        """Get user's GitHub access token (decrypted).
+        """解密并返回用户的 GitHub access token。
 
-        Use this when you need to make GitHub API calls on behalf
-        of the user (fetching their installations, repositories, etc.).
-        The token is stored encrypted in the database for security.
+        仅在需要代表用户调用 GitHub API 时使用；数据库中始终保存密文。
 
         Args:
             user: User object with encrypted access_token
@@ -208,7 +200,7 @@ class UserRepository:
 
     @staticmethod
     def get_decrypted_refresh_token(user: User) -> str | None:
-        """Get user's GitHub refresh token (decrypted).
+        """解密并返回用户的 GitHub refresh token。
 
         Args:
             user: User object with encrypted refresh_token

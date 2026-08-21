@@ -1,4 +1,4 @@
-"""Agent tools powered by Daytona SDK."""
+"""基于 Daytona SDK 实现的 Agent Tool 集合。"""
 
 from app.agents.tools.base import BaseTool, ToolDefinition, ToolResult
 from app.agents.tools.manager import (

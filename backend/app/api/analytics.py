@@ -1,4 +1,4 @@
-"""Analytics API endpoints."""
+"""统计分析相关的 API endpoint。"""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def _enum_to_str(value: Any) -> str:
 
 
 def _window_bounds(days: int) -> tuple[datetime, datetime]:
-    """Return [start, end) bounds in UTC for the last N calendar days."""
+    """返回最近 N 个自然日的 UTC ``[start, end)`` 时间边界。"""
     now = datetime.now(timezone.utc)
     end = datetime.combine(
         now.date() + timedelta(days=1),
@@ -110,7 +110,7 @@ async def get_analytics_overview(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AnalyticsOverviewResponse:
-    """Return analytics cards and 7-day findings charts for a repository."""
+    """返回 Repository 统计卡片与最近 7 天的发现趋势图数据。"""
     window_start, window_end = _window_bounds(WINDOW_DAYS)
 
     reviews_subquery = _scoped_reviews_subquery(repository, current_user.id)
@@ -278,7 +278,7 @@ async def get_dashboard_analytics(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DashboardAnalyticsResponse:
-    """Return dashboard card metrics for a repository."""
+    """返回 Repository 在 dashboard 展示的卡片指标。"""
     window_start, window_end = _window_bounds(days)
     reviews_subquery = _scoped_reviews_subquery(repository, current_user.id)
 
@@ -376,7 +376,7 @@ async def get_sidebar_analytics(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SidebarAnalyticsResponse:
-    """Return compact sidebar card metrics for a repository."""
+    """返回 Repository 在侧边栏展示的精简指标。"""
     window_start, window_end = _window_bounds(days)
     reviews_subquery = _scoped_reviews_subquery(repository, current_user.id)
 

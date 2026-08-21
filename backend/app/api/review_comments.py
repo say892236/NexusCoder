@@ -1,4 +1,4 @@
-"""Review comment API endpoints."""
+"""Review comment 查询 API endpoint。"""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def _validate_enum(value: str | None, allowed: set[str], field_name: str) -> str
 
 
 def _derive_title(comment_title: str | None, comment_text: str) -> str:
-    """Return a non-empty title for legacy rows that may have null titles."""
+    """为 title 可能为空的旧数据生成非空展示标题。"""
     if comment_title and comment_title.strip():
         return comment_title.strip()[:255]
 
@@ -63,7 +63,7 @@ def _derive_title(comment_title: str | None, comment_text: str) -> str:
         stripped = line.strip()
         if not stripped:
             continue
-        # Prefer markdown heading if available.
+    # 存在 Markdown 标题时优先作为展示标题。
         if stripped.startswith("#"):
             heading = stripped.lstrip("#").strip()
             if heading:
@@ -121,7 +121,7 @@ async def list_review_comments(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReviewCommentListResponse:
-    """List review comments with pagination and filters."""
+    """按分页与过滤条件列出 Review comment。"""
     normalized_severity = _validate_enum(severity, SEVERITY_VALUES, "severity")
     normalized_category = _validate_enum(category, CATEGORY_VALUES, "category")
     normalized_review_status = _validate_enum(review_status, REVIEW_STATUS_VALUES, "review_status")
@@ -135,8 +135,8 @@ async def list_review_comments(
     if normalized_review_status:
         review_filters.append(Review.status == normalized_review_status)
 
-    # Scope once to this user's reviews for the selected repository.
-    # Then fetch comments by review_id (no Python-side ID materialization).
+    # 先把 Review 范围限制到当前用户和所选 Repository，再按 review_id 查询评论，
+    # 避免在 Python 侧物化完整 ID 列表。
     reviews_subquery = (
         select(Review.id.label("review_id"))
         .join(Installation, Installation.id == Review.installation_id)

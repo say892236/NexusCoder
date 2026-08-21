@@ -1,7 +1,7 @@
-"""Issues API endpoints.
+"""GitHub Issue 相关 API endpoint。
 
-Provides endpoints to fetch GitHub issues and comments dynamically.
-No database storage - always fetches fresh data from GitHub API.
+Issue 与 comment 不在本地数据库重复存储，而是每次从 GitHub API 动态读取最新数据；
+本地 Installation 只用于确认当前用户已接入该 Repository 并取得认证信息。
 """
 
 import logging
@@ -50,14 +50,14 @@ def _serialize_agent_run(run: AgentRun) -> AgentRunListItemResponse:
 
 
 def _transform_github_issue(issue_data: dict[str, Any], repository: str) -> IssueResponse:
-    """Transform GitHub API issue data to our IssueResponse schema.
+    """把 GitHub API 的原始 Issue 数据转换为 IssueResponse。
 
     Args:
-        issue_data: Raw issue data from GitHub API
-        repository: Repository in format 'owner/repo'
+        issue_data: GitHub API 返回的原始 Issue 数据
+        repository: ``owner/repo`` 格式的 Repository
 
     Returns:
-        IssueResponse object
+        IssueResponse 对象
     """
     return IssueResponse(
         id=issue_data["id"],
@@ -80,14 +80,14 @@ def _transform_github_issue(issue_data: dict[str, Any], repository: str) -> Issu
 def _transform_github_comment(
     comment_data: dict[str, Any], issue_number: int
 ) -> IssueCommentResponse:
-    """Transform GitHub API comment data to our IssueCommentResponse schema.
+    """把 GitHub API 的原始评论数据转换为 IssueCommentResponse。
 
     Args:
-        comment_data: Raw comment data from GitHub API
-        issue_number: Issue number this comment belongs to
+        comment_data: GitHub API 返回的原始评论数据
+        issue_number: 评论所属 Issue 编号
 
     Returns:
-        IssueCommentResponse object
+        IssueCommentResponse 对象
     """
     return IssueCommentResponse(
         id=comment_data["id"],
@@ -107,26 +107,25 @@ async def list_issues(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[IssueResponse]:
-    """List all issues for a repository.
+    """列出 Repository 的全部 Issue。
 
-    Fetches issues dynamically from GitHub API.
-    Requires the repository to be enrolled in Metis.
+    数据从 GitHub API 动态读取，且 Repository 必须已接入 Metis。
 
     Args:
-        repository: Repository full name (owner/repo)
-        state: Filter by issue state (open, closed, all)
-        current_user: Authenticated user
-        db: Database session
+        repository: Repository 全名（owner/repo）
+        state: Issue 状态过滤条件（open、closed、all）
+        current_user: 当前已认证用户
+        db: 数据库会话
 
     Returns:
-        List of issues for the repository
+        Repository 的 Issue 列表
 
     Raises:
-        HTTPException: If repository not found or not enrolled
+        HTTPException: Repository 不存在或尚未接入时抛出
     """
     logger.info(f"Fetching issues for repository: {repository}, state: {state}")
 
-    # Find installation for this repository owned by current user
+    # 仅允许当前用户查询自己已接入的 Repository。
     query = await db.execute(
         select(Installation).where(
             and_(
@@ -144,13 +143,13 @@ async def list_issues(
             detail=f"Repository {repository} not found or not enrolled in Metis",
         )
 
-    # Parse owner/repo
+    # 将 Repository 全名拆分为 GitHub API 所需的 owner/repo。
     try:
         owner, repo = repository.split("/")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid repository format. Use 'owner/repo'")
 
-    # Fetch issues from GitHub
+    # 使用 Installation 身份从 GitHub 获取最新 Issue。
     github = GitHubService()
     try:
         github_issues = await github.get_repository_issues(
@@ -160,7 +159,7 @@ async def list_issues(
             state=state,
         )
 
-        # Transform to our schema
+    # 统一转换为前后端约定的响应 schema。
         issues = [_transform_github_issue(issue, repository) for issue in github_issues]
 
         logger.info(f"Found {len(issues)} issues for {repository}")
@@ -178,25 +177,25 @@ async def get_issue(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> IssueResponse:
-    """Get a single issue by number.
+    """按编号读取单个 Issue。
 
-    Fetches issue dynamically from GitHub API.
+    Issue 从 GitHub API 动态读取。
 
     Args:
-        issue_number: GitHub issue number
-        repository: Repository full name (owner/repo)
-        current_user: Authenticated user
-        db: Database session
+        issue_number: GitHub Issue 编号
+        repository: Repository 全名（owner/repo）
+        current_user: 当前已认证用户
+        db: 数据库会话
 
     Returns:
-        Issue details
+        Issue 详情
 
     Raises:
-        HTTPException: If repository or issue not found
+        HTTPException: Repository 或 Issue 不存在时抛出
     """
     logger.info(f"Fetching issue #{issue_number} for repository: {repository}")
 
-    # Find installation
+    # 查询当前用户在该 Repository 上的 Installation。
     query = await db.execute(
         select(Installation).where(
             and_(
@@ -214,13 +213,13 @@ async def get_issue(
             detail=f"Repository {repository} not found or not enrolled",
         )
 
-    # Parse owner/repo
+    # 拆分 owner/repo。
     try:
         owner, repo = repository.split("/")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid repository format. Use 'owner/repo'")
 
-    # Fetch issue from GitHub
+    # 从 GitHub 读取最新 Issue。
     github = GitHubService()
     try:
         github_issue = await github.get_issue(
@@ -247,25 +246,25 @@ async def get_issue_comments(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[IssueCommentResponse]:
-    """Get all comments for an issue.
+    """读取 Issue 的全部评论。
 
-    Fetches comments dynamically from GitHub API.
+    评论从 GitHub API 动态读取。
 
     Args:
-        issue_number: GitHub issue number
-        repository: Repository full name (owner/repo)
-        current_user: Authenticated user
-        db: Database session
+        issue_number: GitHub Issue 编号
+        repository: Repository 全名（owner/repo）
+        current_user: 当前已认证用户
+        db: 数据库会话
 
     Returns:
-        List of comments for the issue
+        Issue 评论列表
 
     Raises:
-        HTTPException: If repository or issue not found
+        HTTPException: Repository 或 Issue 不存在时抛出
     """
     logger.info(f"Fetching comments for issue #{issue_number} in {repository}")
 
-    # Find installation
+    # 查询当前用户在该 Repository 上的 Installation。
     query = await db.execute(
         select(Installation).where(
             and_(
@@ -283,13 +282,13 @@ async def get_issue_comments(
             detail=f"Repository {repository} not found or not enrolled",
         )
 
-    # Parse owner/repo
+    # 拆分 owner/repo。
     try:
         owner, repo = repository.split("/")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid repository format. Use 'owner/repo'")
 
-    # Fetch comments from GitHub
+    # 从 GitHub 读取最新评论。
     github = GitHubService()
     try:
         github_comments = await github.get_issue_comments(
@@ -299,7 +298,7 @@ async def get_issue_comments(
             installation_id=installation.github_installation_id,
         )
 
-        # Transform to our schema
+    # 转换为前后端约定的评论 schema。
         comments = [_transform_github_comment(comment, issue_number) for comment in github_comments]
 
         logger.info(f"Found {len(comments)} comments for issue #{issue_number}")
@@ -320,7 +319,7 @@ async def list_issue_agent_runs(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[AgentRunListItemResponse]:
-    """List background agent runs for one issue in a repository."""
+    """列出 Repository 某个 Issue 对应的后台 AgentRun。"""
     rows = (
         (
             await db.execute(

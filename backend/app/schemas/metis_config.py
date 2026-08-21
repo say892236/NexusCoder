@@ -1,7 +1,6 @@
-"""Configuration schemas for Metis AI agent.
+"""Metis AI Agent 的配置 schema。
 
-This module defines configuration classes for the AI reviewer and summary writer,
-including sensitivity levels and LLM parameters.
+定义 Review Agent 与 Summary Agent 的配置，包括敏感度和 LLM 参数。
 """
 
 from enum import Enum
@@ -12,7 +11,7 @@ from app.core.config import settings
 
 
 class SensitivityLevel(str, Enum):
-    """Code review sensitivity levels."""
+    """Code Review 敏感度级别。"""
 
     LOW = "low"
     MEDIUM = "medium"
@@ -20,7 +19,7 @@ class SensitivityLevel(str, Enum):
 
 
 class ReviewerConfig(BaseModel):
-    """Configuration for AI code reviewer."""
+    """AI Code Review Agent 配置。"""
 
     sensitivity: SensitivityLevel = Field(
         default=SensitivityLevel.MEDIUM,
@@ -47,10 +46,10 @@ class ReviewerConfig(BaseModel):
     )
 
     def get_sensitivity_instructions(self) -> str:
-        """Get sensitivity-specific instructions.
+        """获取当前敏感度对应的 Prompt 指令。
 
         Returns:
-            Instructions text based on sensitivity level.
+            基于敏感度级别的指令文本
         """
         sensitivity_map = {
             SensitivityLevel.LOW: (
@@ -73,7 +72,7 @@ class ReviewerConfig(BaseModel):
 
 
 class SummaryConfig(BaseModel):
-    """Configuration for AI summary writer."""
+    """AI PR Summary Agent 配置。"""
 
     user_instructions: str = Field(
         default="",

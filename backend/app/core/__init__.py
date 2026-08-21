@@ -1,1 +1,1 @@
-"""Core application functionality and configuration."""
+"""应用核心配置、认证、客户端与基础设施连接。"""

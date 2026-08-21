@@ -1,7 +1,7 @@
-"""GitHub API service for interacting with GitHub.
+"""GitHub API 集成服务。
 
-This module provides functionality to authenticate as a GitHub App,
-fetch pull request data, and post comments/reviews to GitHub PRs.
+负责 GitHub App JWT 与 Installation token 认证，并封装 Repository、Issue、PR、
+Review comment 的读取和写入；Agent 与 Celery task 通过本服务隔离外部 API 细节。
 """
 
 from datetime import datetime, timedelta, timezone
@@ -15,10 +15,10 @@ from app.core.config import settings
 
 
 class GitHubService:
-    """Service for interacting with GitHub API."""
+    """封装 Metis 所需 GitHub API 的异步服务。"""
 
     def __init__(self) -> None:
-        """Initialize GitHub service."""
+        """初始化 GitHub API 客户端并加载 App 私钥。"""
         self.base_url = "https://api.github.com"
         self.app_id = settings.GITHUB_APP_ID
         self.private_key = self._load_private_key()
@@ -30,7 +30,7 @@ class GitHubService:
         )
 
     def _load_private_key(self) -> str:
-        """Load GitHub App private key from file."""
+        """从配置路径读取 GitHub App 私钥。"""
         if settings.GITHUB_SECRET_KEY_PATH is None:
             raise ValueError("GitHub App private key path not configured")
         key_path = Path(settings.GITHUB_SECRET_KEY_PATH)
@@ -39,7 +39,7 @@ class GitHubService:
         raise ValueError("GitHub App private key not configured")
 
     def _generate_jwt(self) -> str:
-        """Generate a JWT for GitHub App authentication."""
+        """生成用于 GitHub App 身份认证的短期 JWT。"""
         now = datetime.now(timezone.utc)
         payload = {
             "iat": int(now.timestamp()) - 60,
@@ -50,7 +50,7 @@ class GitHubService:
         return token
 
     async def get_installation_token(self, installation_id: int) -> str:
-        """Get an installation access token for a specific installation."""
+        """为指定 Installation 获取短期 access token。"""
         jwt_token = self._generate_jwt()
 
         response = await self._client.post(
@@ -70,16 +70,16 @@ class GitHubService:
         pr_number: int,
         installation_id: int | None = None,
     ) -> str:
-        """Get pull request diff.
+        """获取 PR diff 文本。
 
         Args:
-            owner: Repository owner
-            repo: Repository name
-            pr_number: Pull request number
-            installation_id: GitHub App installation ID
+            owner: Repository 所有者
+            repo: Repository 名称
+            pr_number: PR 编号
+            installation_id: GitHub App Installation ID
 
         Returns:
-            PR diff as string.
+            字符串形式的 PR diff
         """
         if installation_id is None:
             raise ValueError("installation_id is required for fetching PR diff")
@@ -106,18 +106,18 @@ class GitHubService:
         event: str = "COMMENT",
         installation_id: int | None = None,
     ) -> dict[str, Any]:
-        """Create a pull request review.
+        """创建一条 PR Review。
 
         Args:
-            owner: Repository owner
-            repo: Repository name
-            pr_number: Pull request number
-            review_body: Main review comment
-            event: Review event type (COMMENT, APPROVE, REQUEST_CHANGES)
-            installation_id: GitHub App installation ID
+            owner: Repository 所有者
+            repo: Repository 名称
+            pr_number: PR 编号
+            review_body: Review 主评论
+            event: Review 事件类型（COMMENT、APPROVE、REQUEST_CHANGES）
+            installation_id: GitHub App Installation ID
 
         Returns:
-            Response data from GitHub API
+            GitHub API 响应数据
         """
         if installation_id is None:
             raise ValueError("installation_id is required for creating PR review")
@@ -145,7 +145,7 @@ class GitHubService:
         pr_number: int,
         installation_id: int | None = None,
     ) -> dict[str, Any]:
-        """Get pull request details as JSON."""
+        """以 JSON 字典读取 PR 详情。"""
         if installation_id is None:
             raise ValueError("installation_id is required for fetching pull request")
         token = await self.get_installation_token(installation_id)
@@ -167,7 +167,7 @@ class GitHubService:
         title: str | None = None,
         installation_id: int | None = None,
     ) -> dict[str, Any]:
-        """Patch pull request title/body."""
+        """更新 PR 标题或正文。"""
         if installation_id is None:
             raise ValueError("installation_id is required for updating PR description")
         if body is None and title is None:
@@ -202,7 +202,7 @@ class GitHubService:
         start_line: int | None = None,
         start_side: str = "RIGHT",
     ) -> dict[str, Any]:
-        """Create one inline review comment on a pull request."""
+        """在 PR 的具体代码行创建一条 inline review comment。"""
 
         payload: dict[str, Any] = {
             "body": body,
@@ -234,7 +234,7 @@ class GitHubService:
         path: str,
         commit_id: str,
     ) -> dict[str, Any]:
-        """Create one file-level review comment on a pull request."""
+        """在 PR 的文件层级创建一条 review comment。"""
 
         payload = {
             "body": body,
@@ -253,17 +253,16 @@ class GitHubService:
         return result
 
     async def get_installation_repositories(self, installation_id: int) -> list[dict[str, Any]]:
-        """Get all repositories accessible to a specific installation.
+        """读取指定 Installation 可访问的全部 Repository。
 
-        Uses GitHub App installation token to fetch repositories that
-        the installation has access to. This is used to show users which
-        repos they can enable for code review.
+        使用 GitHub App Installation token 查询授权范围，用于向用户展示可接入
+        Code Review 的 Repository。
 
         Args:
-            installation_id: GitHub App installation ID
+            installation_id: GitHub App Installation ID
 
         Returns:
-            List of repository data from GitHub API
+            GitHub API 返回的 Repository 数据列表
         """
         token = await self.get_installation_token(installation_id)
 
@@ -280,18 +279,17 @@ class GitHubService:
     async def get_user_installations_with_repos(
         self, user_access_token: str
     ) -> list[dict[str, Any]]:
-        """Get user's GitHub App installations with their accessible repositories.
+        """读取用户的 GitHub App Installation 及各自可访问的 Repository。
 
-        Uses the user's OAuth token to fetch all installations, then for each
-        installation fetches the repositories it has access to.
+        先使用用户 OAuth token 获取全部 Installation，再逐个读取其授权的 Repository。
 
         Args:
-            user_access_token: User's GitHub OAuth access token
+            user_access_token: 用户的 GitHub OAuth access token
 
         Returns:
-            List of installations with nested repositories
+            内嵌 Repository 列表的 Installation 数据
         """
-        # First, get user's installations
+        # 第一步读取用户的全部 Installation。
         response = await self._client.get(
             f"{self.base_url}/user/installations",
             headers={
@@ -304,12 +302,12 @@ class GitHubService:
         data = response.json()
         installations = data.get("installations", [])
 
-        # For each installation, fetch accessible repositories
+        # 第二步逐个补充 Installation 可访问的 Repository。
         installations_with_repos = []
         for installation in installations:
             installation_id = installation["id"]
 
-            # Get installation token to fetch repos
+            # 使用 Installation token 查询对应 Repository。
             try:
                 repos = await self.get_installation_repositories(installation_id)
 
@@ -324,7 +322,7 @@ class GitHubService:
                     }
                 )
             except Exception as e:
-                # Skip installations we can't access
+                # 单个 Installation 无权访问时跳过，不影响其余结果。
                 print(f"Warning: Could not fetch repos for installation {installation_id}: {e}")
                 continue
 
@@ -338,17 +336,17 @@ class GitHubService:
         state: str = "all",
         per_page: int = 100,
     ) -> list[dict[str, Any]]:
-        """Get issues for a repository.
+        """读取 Repository 的 Issue 列表。
 
         Args:
-            owner: Repository owner
-            repo: Repository name
-            installation_id: GitHub App installation ID
-            state: Issue state filter (open, closed, all)
-            per_page: Number of issues per page (max 100)
+            owner: Repository 所有者
+            repo: Repository 名称
+            installation_id: GitHub App Installation ID
+            state: Issue 状态过滤条件（open、closed、all）
+            per_page: 每页 Issue 数量，最多 100
 
         Returns:
-            List of issue data from GitHub API
+            GitHub API 返回的 Issue 数据列表
         """
         token = await self.get_installation_token(installation_id)
 
@@ -360,23 +358,23 @@ class GitHubService:
         response.raise_for_status()
 
         issues: list[dict[str, Any]] = response.json()
-        # Filter out pull requests (GitHub API returns PRs as issues)
+        # GitHub 的 Issue API 也返回 PR，此处显式排除带 pull_request 字段的项。
         issues = [issue for issue in issues if "pull_request" not in issue]
         return issues
 
     async def get_issue(
         self, owner: str, repo: str, issue_number: int, installation_id: int
     ) -> dict[str, Any]:
-        """Get a single issue by number.
+        """按编号读取单个 Issue。
 
         Args:
-            owner: Repository owner
-            repo: Repository name
-            issue_number: Issue number
-            installation_id: GitHub App installation ID
+            owner: Repository 所有者
+            repo: Repository 名称
+            issue_number: Issue 编号
+            installation_id: GitHub App Installation ID
 
         Returns:
-            Issue data from GitHub API
+            GitHub API 返回的 Issue 数据
         """
         token = await self.get_installation_token(installation_id)
 
@@ -397,17 +395,17 @@ class GitHubService:
         installation_id: int,
         per_page: int = 100,
     ) -> list[dict[str, Any]]:
-        """Get comments for an issue.
+        """读取 Issue 下的评论。
 
         Args:
-            owner: Repository owner
-            repo: Repository name
-            issue_number: Issue number
-            installation_id: GitHub App installation ID
-            per_page: Number of comments per page (max 100)
+            owner: Repository 所有者
+            repo: Repository 名称
+            issue_number: Issue 编号
+            installation_id: GitHub App Installation ID
+            per_page: 每页评论数量，最多 100
 
         Returns:
-            List of comment data from GitHub API
+            GitHub API 返回的评论数据列表
         """
         token = await self.get_installation_token(installation_id)
 
@@ -427,7 +425,7 @@ class GitHubService:
         repo: str,
         installation_id: int,
     ) -> dict[str, Any]:
-        """Get repository metadata from GitHub."""
+        """从 GitHub 读取 Repository metadata。"""
         token = await self.get_installation_token(installation_id)
 
         response = await self._client.get(
@@ -449,7 +447,7 @@ class GitHubService:
         base: str,
         installation_id: int,
     ) -> dict[str, Any]:
-        """Create a pull request."""
+        """基于已推送的 head Branch 创建 PR。"""
         token = await self.get_installation_token(installation_id)
 
         response = await self._client.post(
@@ -468,5 +466,5 @@ class GitHubService:
         return pr_data
 
 
-# Global instance
+# 供通用调用方复用的模块级服务实例。
 github_service = GitHubService()

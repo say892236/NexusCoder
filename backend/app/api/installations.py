@@ -1,7 +1,7 @@
-"""Installation management API endpoints.
+"""GitHub App Installation 管理 API。
 
-Provides endpoints for users to view their GitHub installations,
-enable/disable code reviews for repositories, and configure review settings.
+用户可查看 GitHub Installation、为 Repository 启用或停用 Code Review，并维护敏感度、
+自定义指令和忽略模式等 Review 配置。
 """
 
 from typing import Any
@@ -32,18 +32,17 @@ router = APIRouter(prefix="/installations")
 async def list_github_installations(
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    """List user's GitHub App installations with accessible repositories.
+    """列出用户的 GitHub App Installation 及可访问 Repository。
 
-    Fetches installations from GitHub API using user's OAuth token.
-    Shows which repositories the user can enable for code review.
+    使用用户 OAuth token 从 GitHub API 获取授权范围，展示可启用 Code Review 的 Repository。
 
     Returns:
-        List of installations with nested repositories
+        内嵌 Repository 列表的 Installation 数据
     """
-    # Get user's decrypted GitHub OAuth token
+    # 仅在服务端解密 OAuth token，用于代表用户调用 GitHub API。
     github_token = UserRepository.get_decrypted_access_token(current_user)
 
-    # Fetch installations with repositories from GitHub
+    # 从 GitHub 获取 Installation 及其授权 Repository。
     installations = await github_service.get_user_installations_with_repos(github_token)
 
     return installations
@@ -54,19 +53,18 @@ async def sync_installations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SyncInstallationsResponse:
-    """Sync user's GitHub installations to database.
+    """把用户的 GitHub Installation 同步到本地数据库。
 
-    Fetches current installations from GitHub and creates/updates
-    Installation records in the database. This doesn't enable reviews,
-    just syncs the data so users can see what's available.
+    从 GitHub 获取当前 Installation 并创建或更新本地记录；同步本身只刷新可用数据，
+    不等同于为 Repository 启用 Review。
 
     Returns:
-        Sync statistics and list of installations
+        同步统计与 Installation 列表
     """
-    # Get GitHub token
+    # 解密当前用户的 GitHub token。
     github_token = UserRepository.get_decrypted_access_token(current_user)
 
-    # Fetch installations from GitHub
+    # 拉取 GitHub 当前授权范围。
     github_installations = await github_service.get_user_installations_with_repos(github_token)
 
     installation_repo = InstallationRepository()
@@ -80,14 +78,14 @@ async def sync_installations(
         account = gh_installation["account"]
         repositories = gh_installation.get("repositories", [])
 
-        # Determine account type
+        # 根据 GitHub account.type 归一化账户类型。
         account_type = "ORGANIZATION" if account["type"] == "Organization" else "USER"
 
-        # For each repository in this installation
+        # 一个 Installation 可能包含多个 Repository，逐个同步本地记录。
         for repo in repositories:
             repo_full_name = repo["full_name"]
 
-            # Check if this specific repo is already in database
+            # 以 Installation ID 与 Repository 组合判断是否已存在。
             existing_query = await db.execute(
                 select(Installation).where(
                     and_(
@@ -99,11 +97,11 @@ async def sync_installations(
             existing = existing_query.scalar_one_or_none()
 
             if existing:
-                # Update existing installation
+                # 已存在记录只刷新 GitHub 侧信息。
                 updated_count += 1
                 installation = existing
             else:
-                # Create new installation (active by default)
+                # 新授权 Repository 创建本地 Installation，默认启用。
                 installation = await installation_repo.create(
                     db=db,
                     github_installation_id=github_installation_id,
@@ -153,16 +151,15 @@ async def list_installations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[InstallationResponse]:
-    """List user's enrolled installations from database.
+    """从数据库列出用户已接入的 Installation。
 
-    Returns installations and optionally filtered
-    to only show active (enabled) installations.
+    可选择只返回当前 active 的 Installation。
 
     Args:
-        active_only: If True, only return enabled installations
+        active_only: 为 True 时仅返回已启用记录
 
     Returns:
-        List of installation records from database
+        数据库中的 Installation 记录列表
     """
     installation_repo = InstallationRepository()
     installations = await installation_repo.get_user_installations(
@@ -192,10 +189,10 @@ async def enable_repository(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> InstallationResponse:
-    """Enable code reviews for a repository.
+    """为 Repository 启用 Code Review。
 
-    Creates an Installation record if it doesn't exist, or activates
-    an existing one. User must have access to the GitHub installation.
+    记录不存在时创建 Installation，已存在但停用时重新激活；用户必须拥有对应 GitHub
+    Installation 的访问权限。
 
     Args:
         request: Repository and configuration details
@@ -208,7 +205,7 @@ async def enable_repository(
     """
     installation_repo = InstallationRepository()
 
-    # Check if installation exists for this repository
+    # 检查该 Repository 是否已有本地 Installation。
     existing_installation = await db.execute(
         select(Installation).where(
             and_(
@@ -220,21 +217,21 @@ async def enable_repository(
     installation = existing_installation.scalar_one_or_none()
 
     if installation:
-        # Installation exists
+        # 已有记录时区分已启用与可重新激活两种情况。
         if installation.is_active:
-            # Already enabled
+            # 已启用属于冲突，避免重复接入。
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Repository {request.repository} is already enabled",
             )
-        # Reactivate inactive installation
+        # 重新激活之前停用的 Installation。
         installation = await installation_repo.activate(db, installation)
         installation = await installation_repo.update_config(
             db, installation, request.config.model_dump()
         )
         await db.commit()
     else:
-        # Create new installation
+    # 首次接入时创建新 Installation。
         installation = await installation_repo.create(
             db=db,
             github_installation_id=request.github_installation_id,
@@ -267,10 +264,9 @@ async def update_installation_config(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> InstallationResponse:
-    """Update installation review configuration.
+    """更新 Installation 的 Review 配置。
 
-    Allows updating sensitivity, custom instructions, and ignore patterns
-    for an enrolled repository.
+    支持更新敏感度、自定义指令和忽略模式。
 
     Args:
         installation_id: Installation UUID
@@ -292,14 +288,14 @@ async def update_installation_config(
             detail="Installation not found",
         )
 
-    # Verify ownership
+    # 修改前验证 Installation 归属当前用户。
     if installation.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to modify this installation",
         )
 
-    # Update configuration
+    # 仅更新请求中明确提供的配置字段。
     installation = await installation_repo.update_config(
         db, installation, request.config.model_dump()
     )
@@ -325,9 +321,9 @@ async def disable_installation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Disable code reviews for an installation.
+    """停用 Installation 的 Code Review。
 
-    Sets is_active=False. Reviews can be re-enabled later.
+    将 ``is_active`` 设为 False，后续仍可重新启用。
 
     Args:
         installation_id: Installation UUID
@@ -345,13 +341,13 @@ async def disable_installation(
             detail="Installation not found",
         )
 
-    # Verify ownership
+    # 停用前验证 Installation 归属当前用户。
     if installation.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to modify this installation",
         )
 
-    # Deactivate
+    # 软停用并保留历史数据。
     await installation_repo.deactivate(db, installation)
     await db.commit()

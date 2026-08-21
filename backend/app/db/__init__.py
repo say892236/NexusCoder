@@ -1,7 +1,5 @@
-"""Database package for SQLAlchemy async ORM integration.
+"""SQLAlchemy 异步 ORM 集成包。
 
-This package contains the database engine configuration, async session factory,
-base model classes with common fields (id, timestamps), and FastAPI dependency
-injection utilities for database session management with automatic transaction
-handling and connection pooling.
+包含 database engine、AsyncSession factory、带通用字段的 model 基类，以及自动管理
+事务和连接池的 FastAPI session 依赖。
 """

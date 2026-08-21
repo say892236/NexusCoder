@@ -1,4 +1,4 @@
-"""Utilities for safely composing PR description summaries."""
+"""安全组合 PR 原描述与 Agent summary 的辅助函数。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class SummaryComposeResult:
-    """Result of composing PR description with generated summary."""
+    """PR 描述与生成 summary 合并后的结果。"""
 
     body: str
     inserted_new_block: bool
@@ -19,11 +19,11 @@ def compose_pr_description(
     summary_markdown: str,
     mode: str = "append",
 ) -> SummaryComposeResult:
-    """Compose final PR description using append/replace logic.
+    """按 append 或 replace 模式生成最终 PR 描述。
 
-    Modes:
-    - append: preserve existing body and append `\\n --- \\n{summary}`.
-    - replace: replace entire description with summary markdown.
+    模式：
+    - append：保留原正文，并追加 ``\\n --- \\n{summary}``。
+    - replace：用 summary Markdown 替换整个描述。
     """
     normalized_mode = (mode or "append").strip().lower()
     if normalized_mode not in {"append", "replace"}:

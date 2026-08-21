@@ -1,6 +1,6 @@
-"""Metis AI Agent System.
+"""Metis AI Agent 系统。
 
-Autonomous agents for code review, issue resolution, and PR summarization.
+提供 Code Review、Issue 处理与 PR 总结所需的自主 Agent、AgentLoop、Tool 和 Sandbox。
 """
 
 from app.agents.base import AgentState, AgentStatus, BaseAgent

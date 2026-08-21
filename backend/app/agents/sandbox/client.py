@@ -1,4 +1,8 @@
-"""Daytona SDK client wrapper for sandbox operations."""
+"""面向 Agent 的 Daytona SDK Sandbox 客户端封装。
+
+该层负责创建远程 Runtime、设置资源与自动停止策略，并把 Repository clone 到固定工作目录；
+更高层的 SandboxManager 再按 agent_id 管理复用和销毁。
+"""
 
 from daytona import CreateSandboxFromSnapshotParams, Daytona, DaytonaConfig
 
@@ -6,14 +10,14 @@ from app.core.config import settings
 
 
 class DaytonaClient:
-    """Wrapper around Daytona SDK for agent use."""
+    """把 Daytona SDK 适配为 Metis Agent 所需的最小 Sandbox 接口。"""
 
     def __init__(self, git_username: str | None = None, git_token: str | None = None):
-        """Initialize Daytona client with settings from config.
+        """使用应用配置和可选 Git 凭据初始化 Daytona 客户端。
 
         Args:
-            git_username: Git username for authentication (default: "git")
-            git_token: Git personal access token for authentication
+            git_username: Git 认证用户名，默认 ``git``
+            git_token: Git 认证 token
         """
         self._client = Daytona(
             DaytonaConfig(
@@ -33,65 +37,65 @@ class DaytonaClient:
         language: str = "python",
         snapshot: str | None = None,
     ):
-        """Create a new Daytona sandbox.
+        """创建 Daytona Sandbox，并按需 clone Repository。
 
         Args:
-            agent_id: Unique agent ID (used as sandbox name)
-            repository_url: Git repo to clone (optional)
-            language: Python, TypeScript, or JavaScript (default: python)
-            snapshot: Custom snapshot name (optional)
+            agent_id: Agent 唯一 ID，同时用于 Sandbox 名称
+            repository_url: 可选的 Git Repository 地址
+            language: Runtime 语言，支持 Python、TypeScript、JavaScript
+            snapshot: 可选的自定义 snapshot 名称
 
         Returns:
-            Daytona Sandbox instance
+            Daytona Sandbox 实例
         """
         params = CreateSandboxFromSnapshotParams(
             name=f"agent-{agent_id}",
             language=language,
             snapshot=snapshot,
             resources={
-                "cpu": 2,  # 2 vCPU
-                "memory": 4,  # 4GB RAM
-                "disk": 2,  # 2GB disk
+                "cpu": 2,  # 2 个 vCPU
+                "memory": 4,  # 4 GB 内存
+                "disk": 2,  # 2 GB 磁盘
             },
-            auto_stop_interval=15,  # Stop after 15 min inactivity
-            auto_delete_interval=-1,  # Never auto-delete
-            ephemeral=False,  # Keep sandbox after stop
+            auto_stop_interval=15,  # 空闲 15 分钟后自动停止以节省资源。
+            auto_delete_interval=-1,  # 不让 Daytona 自动删除，由 manager 显式释放。
+            ephemeral=False,  # stop 后保留 Sandbox，允许重新启动。
         )
 
-        # Create sandbox (will stream logs if needed)
+        # 创建远程 Runtime；timeout=0 的具体等待语义由 Daytona SDK 负责。
         sandbox = self._client.create(params, timeout=0)
 
-        # Clone repository if provided
+        # 有 Repository 地址时，在返回前完成 clone。
         if repository_url:
             self._clone_repository(sandbox, repository_url, branch)
 
         return sandbox
 
     def _clone_repository(self, sandbox, repository_url: str, branch: str | None = None) -> None:
-        """Clone a Git repository into the sandbox.
+        """把 Git Repository clone 到 Sandbox 的固定工作目录。
 
         Args:
-            sandbox: Daytona Sandbox instance
-            repository_url: Git repository URL to clone
-            branch: Specific branch to clone
+            sandbox: Daytona Sandbox 实例
+            repository_url: Git Repository 地址
+            branch: 指定要 clone 的 Branch
         """
-        # Use Daytona's built-in git clone with authentication
+        # 使用 Daytona 内置 Git API，并把认证信息限制在 clone 操作中。
         sandbox.git.clone(
             url=repository_url,
             path="workspace/repo",
-            branch=branch,  # Clone PR's branch
+            branch=branch,  # Review 场景 clone PR Branch；Coding 场景 clone 默认 Branch。
             username=self.git_username,
             password=self.git_token,
         )
 
     def find_sandbox(self, sandbox_id: str):
-        """Find an existing sandbox by ID.
+        """按 ID 查找已存在的 Sandbox。
 
         Args:
-            sandbox_id: Daytona sandbox ID
+            sandbox_id: Daytona Sandbox ID
 
         Returns:
-            Daytona Sandbox instance or None
+            找到时返回 Daytona Sandbox，否则返回 None
         """
         try:
             return self._client.find_one(sandbox_id)

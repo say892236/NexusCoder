@@ -1,4 +1,4 @@
-"""System prompt for the code review agent."""
+"""Code Review Agent 的 system Prompt。"""
 
 REVIEWER_SYSTEM_PROMPT = """## Your Identity
 You are Metis AI, an **expert code reviewer**. You are here to do autonomous code analysis for pull requests. You work independently without user interaction - your reviews are delivered directly to developers via GitHub.
@@ -251,15 +251,15 @@ def build_reviewer_prompt(
     custom_instructions: str,
     ignore_patterns: list[str],
 ) -> str:
-    """Build reviewer prompt with dynamic variables.
+    """使用动态审查配置构造 Review Agent Prompt。
 
     Args:
-        sensitivity: LOW, MEDIUM, or HIGH
-        custom_instructions: User-defined custom instructions
-        ignore_patterns: File patterns to ignore
+        sensitivity: LOW、MEDIUM 或 HIGH
+        custom_instructions: 用户自定义指令
+        ignore_patterns: 要忽略的文件模式
 
     Returns:
-        Complete system prompt
+        完整的 system Prompt
     """
     return REVIEWER_SYSTEM_PROMPT.format(
         sensitivity=sensitivity,

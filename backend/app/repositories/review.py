@@ -1,8 +1,7 @@
-"""Review repository for database operations on Review and ReviewComment models.
+"""Review 与 ReviewComment model 的数据访问 Repository。
 
-Provides data access methods for creating and querying code reviews and their
-associated inline comments. Includes queries for review status tracking, filtering
-by repository or installation, and aggregating review statistics.
+封装 Review 创建、状态跟踪、条件查询、inline comment 与统计聚合，避免 API 和 task
+直接散落 SQLAlchemy 查询逻辑。
 """
 
 from datetime import datetime, timezone
@@ -15,16 +14,14 @@ from app.models.review import Review, ReviewComment
 
 
 class ReviewRepository:
-    """Data access layer for Review model.
+    """Review model 的数据访问层。
 
-    Encapsulates queries for PR reviews including status tracking,
-    filtering by various criteria, and retrieving reviews with their
-    associated comments for complete review data.
+    集中处理 PR Review 状态、条件过滤，以及携带关联 comment 的完整查询。
     """
 
     @staticmethod
     async def get_by_id(db: AsyncSession, review_id: UUID | str) -> Review | None:
-        """Get review by UUID.
+        """按 UUID 查询 Review。
 
         Args:
             db: Database session
@@ -38,10 +35,9 @@ class ReviewRepository:
 
     @staticmethod
     async def get_by_pr(db: AsyncSession, repository: str, pr_number: int) -> list[Review]:
-        """Get all reviews for a specific pull request.
+        """查询指定 PR 的全部 Review。
 
-        A PR may have multiple reviews if it's updated multiple times.
-        Returns them ordered by most recent first.
+        PR 每次更新都可能触发新 Review，因此按最新创建时间倒序返回。
 
         Args:
             db: Database session
@@ -66,7 +62,7 @@ class ReviewRepository:
         skip: int = 0,
         limit: int = 50,
     ) -> list[Review]:
-        """Get reviews for an installation with optional status filter.
+        """分页查询 Installation 的 Review，可按状态过滤。
 
         Args:
             db: Database session
@@ -97,7 +93,7 @@ class ReviewRepository:
         commit_sha: str,
         metadata: dict | None = None,
     ) -> Review:
-        """Create new review record in PENDING status.
+        """创建 PENDING 状态的 Review。
 
         Args:
             db: Database session
@@ -132,10 +128,9 @@ class ReviewRepository:
         status: str,
         error: str | None = None,
     ) -> Review:
-        """Update review status and timestamps.
+        """更新 Review 状态及对应时间戳。
 
-        Automatically sets started_at when status changes to PROCESSING
-        and completed_at when status changes to COMPLETED or FAILED.
+        状态进入 PROCESSING 时设置 started_at，进入 COMPLETED 或 FAILED 时设置 completed_at。
 
         Args:
             db: Database session
@@ -149,7 +144,7 @@ class ReviewRepository:
         old_status = review.status
         review.status = status
 
-        # Set timestamps based on status
+        # 根据生命周期状态维护开始和完成时间。
         if status == "PROCESSING" and old_status == "PENDING":
             review.started_at = datetime.now(timezone.utc)
 
@@ -166,7 +161,7 @@ class ReviewRepository:
 
     @staticmethod
     async def add_review_text(db: AsyncSession, review: Review, review_text: str) -> Review:
-        """Add review summary text after AI generation.
+        """保存 AI Agent 生成的 Review summary。
 
         Args:
             db: Database session
@@ -185,9 +180,9 @@ class ReviewRepository:
 
     @staticmethod
     async def get_pending_reviews(db: AsyncSession, limit: int = 10) -> list[Review]:
-        """Get pending reviews ordered by creation time.
+        """按创建时间查询待处理的 PENDING Review。
 
-        Useful for background workers to pick up reviews that need processing.
+        供后台 worker 获取需要处理的 Review。
 
         Args:
             db: Database session
@@ -214,9 +209,9 @@ class ReviewRepository:
         pr_metadata: dict,
         celery_task_id: str,
     ) -> Review:
-        """Create Review record in PENDING state with Celery task ID.
+        """创建带 Celery task ID 的 PENDING Review。
 
-        Used by webhook handler to create review before queueing async task.
+        webhook handler 在异步 task 入队前使用，避免 worker 查询不到记录。
 
         Args:
             db: Database session
@@ -248,11 +243,9 @@ class ReviewRepository:
 
 
 class ReviewCommentRepository:
-    """Data access layer for ReviewComment model.
+    """ReviewComment model 的数据访问层。
 
-    Encapsulates queries for individual code review comments including
-    creating comments, querying by file or severity, and managing the
-    posting status to GitHub.
+    封装独立评论的创建、按文件或严重级别查询，以及 GitHub 发布状态管理。
     """
 
     @staticmethod
@@ -267,7 +260,7 @@ class ReviewCommentRepository:
         category: str,
         line_end: int | None = None,
     ) -> ReviewComment:
-        """Create new review comment.
+        """创建新的 ReviewComment。
 
         Args:
             db: Database session
@@ -302,7 +295,7 @@ class ReviewCommentRepository:
 
     @staticmethod
     async def get_by_review(db: AsyncSession, review_id: UUID | str) -> list[ReviewComment]:
-        """Get all comments for a review.
+        """查询 Review 的全部 comment。
 
         Args:
             db: Database session
@@ -322,7 +315,7 @@ class ReviewCommentRepository:
     async def get_by_severity(
         db: AsyncSession, review_id: UUID | str, severity: str
     ) -> list[ReviewComment]:
-        """Get comments filtered by severity level.
+        """按严重级别过滤 ReviewComment。
 
         Args:
             db: Database session
@@ -346,10 +339,9 @@ class ReviewCommentRepository:
     async def mark_posted(
         db: AsyncSession, comment: ReviewComment, github_comment_id: int
     ) -> ReviewComment:
-        """Mark comment as posted to GitHub.
+        """标记 comment 已成功发布到 GitHub。
 
-        Records the GitHub comment ID after successfully posting
-        the comment via GitHub API.
+        GitHub API 发布成功后保存其 comment ID。
 
         Args:
             db: Database session
@@ -368,9 +360,9 @@ class ReviewCommentRepository:
 
     @staticmethod
     async def count_by_severity(db: AsyncSession, review_id: UUID | str) -> dict[str, int]:
-        """Count comments by severity for a review.
+        """按严重级别统计 Review comment 数量。
 
-        Useful for displaying review summary statistics.
+        用于展示 Review 汇总统计。
 
         Args:
             db: Database session

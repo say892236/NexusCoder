@@ -1,4 +1,4 @@
-"""Git operation tools using Daytona SDK."""
+"""通过 Daytona SDK 执行 Repository Git 工作流的 Tool。"""
 
 import json
 
@@ -6,7 +6,7 @@ from app.agents.tools.base import BaseTool, ToolDefinition, ToolResult
 
 
 class GitStatusTool(BaseTool):
-    """Get Git repository status."""
+    """读取 Repository 的 Git 状态。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -26,7 +26,7 @@ class GitStatusTool(BaseTool):
         )
 
     async def execute(self, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute git status using Daytona git.status()."""
+        """通过 ``Daytona git.status()`` 执行 Git status。"""
         try:
             status = self.sandbox.git.status(path)
 
@@ -44,7 +44,7 @@ class GitStatusTool(BaseTool):
 
 
 class GitCreateBranchTool(BaseTool):
-    """Create a new Git branch."""
+    """创建新的 Git Branch。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -68,7 +68,7 @@ class GitCreateBranchTool(BaseTool):
         )
 
     async def execute(self, branch_name: str, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute branch creation using Daytona git.create_branch()."""
+        """通过 ``Daytona git.create_branch()`` 创建 Branch。"""
         try:
             self.sandbox.git.create_branch(path, branch_name)
             return ToolResult(success=True, data={"branch": branch_name})
@@ -77,7 +77,7 @@ class GitCreateBranchTool(BaseTool):
 
 
 class GitCheckoutBranchTool(BaseTool):
-    """Switch to a Git branch."""
+    """切换到指定 Git Branch。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -101,7 +101,7 @@ class GitCheckoutBranchTool(BaseTool):
         )
 
     async def execute(self, branch_name: str, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute checkout using Daytona git.checkout_branch()."""
+        """通过 ``Daytona git.checkout_branch()`` 执行 checkout。"""
         try:
             self.sandbox.git.checkout_branch(path, branch_name)
             return ToolResult(success=True, data={"branch": branch_name})
@@ -110,7 +110,7 @@ class GitCheckoutBranchTool(BaseTool):
 
 
 class GitAddTool(BaseTool):
-    """Stage files for commit."""
+    """把文件加入 Git 暂存区，为 Commit 做准备。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -135,7 +135,7 @@ class GitAddTool(BaseTool):
         )
 
     async def execute(self, files: list[str], path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute staging using Daytona git.add()."""
+        """通过 ``Daytona git.add()`` 执行暂存。"""
         try:
             self.sandbox.git.add(path, files)
             return ToolResult(success=True, data={"staged_files": files})
@@ -144,7 +144,7 @@ class GitAddTool(BaseTool):
 
 
 class GitCommitTool(BaseTool):
-    """Commit staged changes."""
+    """将暂存区变更创建为 Commit。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -180,7 +180,7 @@ class GitCommitTool(BaseTool):
         path: str = "workspace/repo",
         **kwargs,
     ) -> ToolResult:
-        """Execute commit using git identity by default; override only if provided."""
+        """默认沿用 Repository Git 身份，仅在显式传参时覆盖后执行 Commit。"""
         try:
             normalized_name = (author_name or "").strip()
             normalized_email = (author_email or "").strip()
@@ -194,7 +194,7 @@ class GitCommitTool(BaseTool):
                     },
                 )
 
-            # Default path: use repository git identity without overriding author metadata.
+        # 默认沿用编排层预先配置的 Git 身份，避免无意覆盖作者元数据。
             response = self.sandbox.process.exec(
                 command=f"git commit -m {json.dumps(message)}",
                 cwd=path,
@@ -214,7 +214,7 @@ class GitCommitTool(BaseTool):
 
 
 class GitPushTool(BaseTool):
-    """Push commits to remote."""
+    """把本地 Commit 推送到远端 Repository。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -234,7 +234,7 @@ class GitPushTool(BaseTool):
         )
 
     async def execute(self, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute push using Daytona git.push()."""
+        """通过 ``Daytona git.push()`` 执行 push。"""
         try:
             self.sandbox.git.push(path)
             return ToolResult(success=True, data={"pushed": True})
@@ -243,7 +243,7 @@ class GitPushTool(BaseTool):
 
 
 class GitPullTool(BaseTool):
-    """Pull changes from remote."""
+    """从远端 Repository 拉取变更。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -263,7 +263,7 @@ class GitPullTool(BaseTool):
         )
 
     async def execute(self, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute pull using Daytona git.pull()."""
+        """通过 ``Daytona git.pull()`` 执行 pull。"""
         try:
             self.sandbox.git.pull(path)
             return ToolResult(success=True, data={"pulled": True})
@@ -272,7 +272,7 @@ class GitPullTool(BaseTool):
 
 
 class GitBranchesTool(BaseTool):
-    """List all Git branches."""
+    """列出全部 Git Branch。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -292,7 +292,7 @@ class GitBranchesTool(BaseTool):
         )
 
     async def execute(self, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute branches listing using Daytona git.branches()."""
+        """通过 ``Daytona git.branches()`` 获取 Branch 列表。"""
         try:
             response = self.sandbox.git.branches(path)
             return ToolResult(

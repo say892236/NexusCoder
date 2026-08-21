@@ -1,4 +1,4 @@
-"""Agent implementations."""
+"""不同业务场景的 Agent 实现。"""
 
 from app.agents.implementation.background_agent import BackgroundAgent
 from app.agents.implementation.review_agent import ReviewAgent

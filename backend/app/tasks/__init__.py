@@ -1,6 +1,6 @@
-"""Celery tasks package.
+"""Celery task 包。
 
-Imports all task modules to register them with Celery worker.
+导入各 task 模块，使 Celery worker 能在启动时完成任务注册。
 """
 
 from app.tasks.agent_review_task import process_pr_review_with_agent

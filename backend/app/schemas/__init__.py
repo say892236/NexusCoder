@@ -1,1 +1,1 @@
-"""Pydantic schemas for request/response validation."""
+"""用于请求与响应校验的 Pydantic schema。"""

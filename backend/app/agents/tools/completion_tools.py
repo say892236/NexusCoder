@@ -1,10 +1,14 @@
-"""Completion tools for agents to signal task completion."""
+"""Agent 用来显式发出任务完成信号的 Completion Tool。
+
+这些 Tool 不操作 Sandbox；它们把最终结果封装为 ``metadata.type=completion``，
+BaseAgent 识别后停止 AgentLoop，并把 ``data`` 作为结构化执行结果交给外层任务。
+"""
 
 from app.agents.tools.base import BaseTool, ToolDefinition, ToolResult
 
 
 class FinishReviewTool(BaseTool):
-    """Signal that code review is complete."""
+    """通知 AgentLoop：Code Review 已完成。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -36,15 +40,15 @@ class FinishReviewTool(BaseTool):
     async def execute(
         self, summary: str, verdict: str, overall_severity: str = "medium", **kwargs
     ) -> ToolResult:
-        """Mark review as complete.
+        """校验并返回 Review 的最终结构化结论。
 
         Args:
-            summary: Final short review summary
-            verdict: Final PR verdict
-            overall_severity: Global issue severity
+            summary: 最终简短审查摘要
+            verdict: 最终 PR 结论
+            overall_severity: 全局问题严重级别
 
         Returns:
-            ToolResult with review data
+            包含 Review 数据与完成信号的 ToolResult
         """
         normalized_verdict = verdict.strip().upper()
         if normalized_verdict not in {"APPROVE", "REQUEST_CHANGES", "COMMENT"}:
@@ -73,7 +77,7 @@ class FinishReviewTool(BaseTool):
 
 
 class FinishTaskTool(BaseTool):
-    """Signal that coding task is complete (PR created)."""
+    """通知 AgentLoop：Coding 任务已完成并准备创建 PR。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -103,15 +107,15 @@ class FinishTaskTool(BaseTool):
         files_changed: list[str] | None = None,
         **kwargs,
     ) -> ToolResult:
-        """Mark task as complete.
+        """校验并返回 Coding 任务的最终结构化结果。
 
         Args:
-            summary: Implementation summary
-            branch_name: Branch with changes
-            files_changed: List of modified files
+            summary: 实现摘要
+            branch_name: 承载变更的 Branch
+            files_changed: 修改文件列表
 
         Returns:
-            ToolResult with task data
+            包含任务数据与完成信号的 ToolResult
         """
         return ToolResult(
             success=True,
@@ -126,7 +130,7 @@ class FinishTaskTool(BaseTool):
 
 
 class FinishSummaryTool(BaseTool):
-    """Signal that PR summary generation is complete."""
+    """通知 AgentLoop：PR summary 已生成。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -155,7 +159,7 @@ class FinishSummaryTool(BaseTool):
         pr_title: str,
         **kwargs,
     ) -> ToolResult:
-        """Mark summary task as complete."""
+        """校验并返回最终 PR summary 与标题。"""
         cleaned_summary = summary_text.strip()
         if not cleaned_summary:
             return ToolResult(

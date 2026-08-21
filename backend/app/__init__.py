@@ -1,1 +1,1 @@
-"""Metis AI Code Reviewer application package."""
+"""Metis AI Code Reviewer 后端应用包。"""

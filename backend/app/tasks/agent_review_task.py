@@ -1,4 +1,8 @@
-"""Celery task for AI agent-powered code reviews."""
+"""由 AI Agent 执行 PR Code Review 的 Celery task。
+
+worker 读取 Review 与 Installation，拉取 PR 上下文并创建 Sandbox，随后由 ReviewAgent
+通过只读 Tool、验证 Tool 和发布 Tool 完成审查，最后回写 Review 状态并释放 Sandbox。
+"""
 
 import asyncio
 import logging
@@ -22,7 +26,7 @@ INT32_MAX = 2_147_483_647
 
 
 def _to_int32_or_none(value: object) -> int | None:
-    """Convert numeric values to int32 when possible."""
+    """在可行时把数值转换为 int32。"""
     if value is None:
         return None
     try:
@@ -42,14 +46,14 @@ def process_pr_review_with_agent(
     repository: str,
     pr_number: int,
 ):
-    """Process PR review using AI agent.
+    """Celery 同步入口：使用 AI Agent 处理 PR Review。
 
     Args:
-        self: Celery task instance
+        self: Celery Task 实例
         review_id: Review UUID
-        installation_id: GitHub installation ID
-        repository: Repository full name (owner/repo)
-        pr_number: Pull request number
+        installation_id: GitHub Installation ID
+        repository: Repository 全名（owner/repo）
+        pr_number: PR 编号
     """
     return asyncio.run(
         _process_pr_review_with_agent_async(self, review_id, installation_id, repository, pr_number)
@@ -63,14 +67,14 @@ async def _process_pr_review_with_agent_async(
     repository: str,
     pr_number: int,
 ):
-    """Async implementation of agent-powered PR review.
+    """Agent 驱动 PR Review 的异步编排实现。
 
     Args:
-        task_self: Celery task instance
+        task_self: Celery Task 实例
         review_id: Review UUID
-        installation_id: GitHub installation ID
-        repository: Repository full name (owner/repo)
-        pr_number: Pull request number
+        installation_id: GitHub Installation ID
+        repository: Repository 全名（owner/repo）
+        pr_number: PR 编号
     """
     sandbox = None
     sandbox_manager = None
@@ -81,7 +85,7 @@ async def _process_pr_review_with_agent_async(
         github = GitHubService()
 
         try:
-            # 1. Load Review and Installation
+            # 1. 读取 Review 与 Installation，建立本次审查的数据库上下文。
             logger.info(f"Loading review {review_id}")
 
             review_query = await db.execute(select(Review).where(Review.id == review_id))
@@ -115,28 +119,28 @@ async def _process_pr_review_with_agent_async(
                     "review_id": review_id,
                 }
 
-            # Update status to PROCESSING
+            # 先提交 PROCESSING，使前端轮询能看到 worker 已开始执行。
             review.status = "PROCESSING"
             await db.commit()
 
-            # 2. Get PR diff and extract metadata
+            # 2. 从 GitHub 获取 PR diff，并读取 webhook 阶段保存的元数据。
             logger.info(f"Fetching PR #{pr_number} diff from {repository}")
 
             owner, repo = repository.split("/")
             diff = await github.get_pr_diff(owner, repo, pr_number, installation_id)
 
-            # Extract branch and language from stored metadata (from webhook)
+            # Branch 与语言来自 webhook 保存的 PR metadata。
             head_branch = review.pr_metadata.get("head_branch", "main")
             base_branch = review.pr_metadata.get("base_branch", "main")
             pr_language = review.pr_metadata.get("language", "Python")
 
             logger.info(f"PR: {head_branch} → {base_branch}, language: {pr_language}")
 
-            # 3. Get GitHub installation token for git auth
+            # 3. 获取 GitHub Installation token，供 Sandbox clone 和发布评论认证。
             logger.info("Getting installation token for git authentication")
             installation_token = await github.get_installation_token(installation_id)
 
-            # 4. Load reviewer configuration
+            # 4. 加载用户配置的敏感度、自定义指令和忽略模式。
             config_dict = installation.config or {}
             sensitivity = config_dict.get("sensitivity", "MEDIUM")
             custom_instructions = config_dict.get("custom_instructions", "")
@@ -146,20 +150,20 @@ async def _process_pr_review_with_agent_async(
                 f"Review config: sensitivity={sensitivity}, ignore_patterns={ignore_patterns}"
             )
 
-            # 5. Initialize Daytona sandbox
+            # 5. 初始化 Daytona SandboxManager。
             logger.info("Creating Daytona sandbox")
 
             sandbox_manager = SandboxManager(
                 git_username="x-access-token", git_token=installation_token
             )
 
-            # Clone repository in sandbox (PR branch)
+            # Sandbox 创建时直接 clone PR Branch，确保 Review 针对待审代码。
             repo_url = f"https://github.com/{repository}.git"
 
-            # Determine sandbox language
-            sandbox_language = "python"  # Default
+            # 根据 Repository 主语言选择 Sandbox Runtime，默认使用 Python。
+            sandbox_language = "python"  # 默认值。
             if pr_language:
-                # Map GitHub languages to Daytona languages
+            # 将 GitHub 语言名映射到 Daytona Runtime 标识。
                 language_map = {
                     "Python": "python",
                     "TypeScript": "typescript",
@@ -172,13 +176,13 @@ async def _process_pr_review_with_agent_async(
             sandbox = sandbox_manager.acquire(
                 agent_id=review_id,
                 repository_url=repo_url,
-                branch=head_branch,  # Clone PR branch directly
+                branch=head_branch,  # 直接 clone PR Branch，确保是待审版本。
                 language=sandbox_language,
             )
 
             logger.info(f"Sandbox created: {sandbox.id}")
 
-            # 6. Initialize tools for reviewer
+            # 6. 组装 Review Agent 的只读、验证、发布与完成 Tool。
             tools = get_reviewer_tools(
                 sandbox=sandbox,
                 review_id=review_id,
@@ -191,10 +195,10 @@ async def _process_pr_review_with_agent_async(
 
             logger.info(f"Registered {len(tools.list_tool_names())} tools for reviewer")
 
-            # 7. Initialize LLM client
+            # 7. 初始化 LLM 客户端。
             llm_client = get_llm_client()
 
-            # 8. Create ReviewAgent
+            # 8. 用 PR 上下文和 Review 配置创建 ReviewAgent。
             logger.info("Creating ReviewAgent")
 
             agent = ReviewAgent(
@@ -213,7 +217,7 @@ async def _process_pr_review_with_agent_async(
                 max_duration_seconds=6000,
             )
 
-            # 9. Run agent loop
+            # 9. 运行 AgentLoop，直到 finish_review、失败或达到资源上限。
             logger.info("Starting agent loop")
 
             loop = AgentLoop(agent)
@@ -225,7 +229,7 @@ async def _process_pr_review_with_agent_async(
                 f"tokens={final_state.tokens_used}"
             )
 
-            # 10. Extract final summary/verdict from result
+            # 10. 从 Completion Tool 的结果提取最终 summary 与 verdict。
             if final_state.status == "completed" and final_state.result:
                 summary = final_state.result.get("summary")
                 verdict = final_state.result.get("verdict", "COMMENT")
@@ -247,7 +251,7 @@ async def _process_pr_review_with_agent_async(
                     f"Review summary generated: {len(summary)} chars, verdict={verdict}, severity={overall_severity}"
                 )
 
-                # 11. Post final summary review to GitHub
+            # 11. 将最终汇总 Review 发布到 GitHub。
                 logger.info("Posting review to GitHub")
 
                 gh_review = await github.create_pr_review(
@@ -259,7 +263,7 @@ async def _process_pr_review_with_agent_async(
                     installation_id=installation_id,
                 )
 
-                # 12. Update Review status
+            # 12. 回写 Review 完成状态和 Agent 执行指标。
                 review.status = "COMPLETED"
                 review.review_text = summary
                 review.github_review_id = _to_int32_or_none(gh_review.get("id"))
@@ -277,7 +281,7 @@ async def _process_pr_review_with_agent_async(
                 logger.info(f"Review {review_id} completed successfully")
 
             else:
-                # Agent failed or hit limits
+            # Agent 未正常完成或触发资源上限时进入失败分支。
                 error_msg = final_state.error or "Agent did not complete review"
                 logger.error(f"Agent failed: {error_msg}")
 
@@ -289,7 +293,7 @@ async def _process_pr_review_with_agent_async(
             logger.error(f"Review task failed: {e}", exc_info=True)
             await db.rollback()
 
-            # Update review status
+            # 尽量把异常状态持久化，避免 Review 长期停留在 PROCESSING。
             if review:
                 review.status = "FAILED"
                 review.error = str(e)
@@ -298,15 +302,15 @@ async def _process_pr_review_with_agent_async(
             raise
 
         finally:
-            # Cleanup sandbox
+            # finally 始终释放远程 Sandbox，避免资源泄漏。
             if sandbox_manager and review_id:
                 try:
                     logger.info(f"Cleaning up sandbox for {review_id}")
                     sandbox_manager.release(review_id)
                 except Exception as e:
                     logger.error(f"Sandbox cleanup failed: {e}")
-            # Celery retries can run in a new event loop in the same worker process.
-            # Dispose pooled async connections to avoid cross-loop reuse.
+            # Celery 重试可能在同一 worker 进程的新 event loop 中运行；释放连接池可避免
+            # 跨 event loop 复用异步数据库连接。
             try:
                 await engine.dispose()
             except Exception as e:

@@ -1,4 +1,8 @@
-"""Agent run model for background Issue -> PR coding workflow."""
+"""Issue -> PR 后台编码流程的 AgentRun 持久化模型。
+
+AgentRun 是整条链路的数据库锚点：API 创建它，Celery worker 更新执行状态，
+AgentLoop 的 token、Tool 调用与消息轨迹写回这里，最终再记录 Branch 和 PR 信息。
+"""
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -9,7 +13,7 @@ from app.db.base_class import BaseModel
 
 
 class AgentRun(Base, BaseModel):
-    """Tracks a single background coding-agent execution."""
+    """记录一次后台 Coding Agent 从排队到结束的完整执行快照。"""
 
     __tablename__ = "agent_runs"
 
@@ -64,7 +68,7 @@ class AgentRun(Base, BaseModel):
 
     changed_files = Column(JSONB, nullable=False, default=list)
 
-    # Full raw payloads for tracing/debugging UX
+    # 保留完整原始载荷，供执行轨迹展示、问题定位和学习 Agent 推理过程使用。
     system_prompt = Column(Text, nullable=True)
     initial_user_message = Column(Text, nullable=True)
     conversation = Column(JSONB, nullable=False, default=list)
@@ -74,7 +78,7 @@ class AgentRun(Base, BaseModel):
     user = relationship("User")
 
     def __repr__(self) -> str:
-        """String representation for debugging."""
+        """返回便于日志调试的字符串表示。"""
         return (
             f"<AgentRun(id={self.id}, repo={self.repository}, "
             f"issue={self.issue_number}, status={self.status})>"

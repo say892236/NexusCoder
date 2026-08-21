@@ -1,4 +1,4 @@
-"""Schemas for background coding agent runs."""
+"""后台 Coding AgentRun 的请求与响应 schema。"""
 
 from datetime import datetime
 from typing import Any
@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class LaunchAgentRequest(BaseModel):
-    """Request payload for launching a background coding agent."""
+    """启动后台 Coding Agent 的请求载荷。"""
 
     issue_number: int = Field(..., ge=1)
     repository: str = Field(..., description="Repository in format 'owner/repo'")
@@ -16,7 +16,7 @@ class LaunchAgentRequest(BaseModel):
 
 
 class LaunchAgentResponse(BaseModel):
-    """Response payload after queueing an agent run."""
+    """AgentRun 成功入队后的响应载荷。"""
 
     agent_run_id: UUID
     celery_task_id: str
@@ -24,7 +24,7 @@ class LaunchAgentResponse(BaseModel):
 
 
 class AgentRunListItemResponse(BaseModel):
-    """Compact agent run payload for list views."""
+    """列表视图使用的精简 AgentRun 数据。"""
 
     id: UUID
     issue_id: str
@@ -48,7 +48,7 @@ class AgentRunListItemResponse(BaseModel):
 
 
 class AgentRunDetailResponse(AgentRunListItemResponse):
-    """Detailed agent run payload for progress/detail views."""
+    """进度与详情视图使用的完整 AgentRun 数据。"""
 
     issue_title_snapshot: str | None
     issue_body_snapshot: str | None

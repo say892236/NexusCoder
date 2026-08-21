@@ -1,4 +1,4 @@
-"""GitHub webhook endpoint handler."""
+"""GitHub webhook 的 FastAPI endpoint。"""
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -22,18 +22,18 @@ async def github_webhook(
     x_github_event: str = Header(...),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
-    """Handle GitHub webhook events with async task processing."""
-    # Get raw payload for signature verification
+    """接收 GitHub webhook，并把耗时处理投递为异步 task。"""
+    # 签名校验必须使用未经 JSON 解析的原始请求体。
     payload = await request.body()
 
-    # Verify webhook signature
+    # 在处理事件前验证 GitHub webhook 签名。
     if not verify_github_signature(payload, x_hub_signature_256):
         raise HTTPException(status_code=401, detail="Invalid Webhook Signature")
 
-    # Parse the JSON payload
+    # 签名通过后再解析 JSON payload。
     data = await request.json()
 
-    # Handle different event types
+    # 根据 GitHub event 类型分发到对应 handler。
     match x_github_event:
         case "ping":
             result = handle_ping()
@@ -47,7 +47,7 @@ async def github_webhook(
                 installation=data["installation"],
                 db=db,
             )
-            # Return 202 Accepted for async processing
+    # 后台任务已受理但尚未完成，因此返回 202 Accepted。
             return JSONResponse(content=result, status_code=202)
 
         case _:

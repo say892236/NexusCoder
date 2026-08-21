@@ -1,1 +1,1 @@
-"""Business logic and external service integrations."""
+"""业务编排与外部服务集成层。"""

@@ -1,7 +1,6 @@
-"""System prompts for AI-powered code review.
+"""AI Code Review 使用的 system Prompt。
 
-This module contains system prompts used by metis
-and summary writer components.
+包含 Metis Review 与 summary writer 组件使用的 Prompt 模板。
 """
 
 REVIEW_SYSTEM_PROMPT = """<system>

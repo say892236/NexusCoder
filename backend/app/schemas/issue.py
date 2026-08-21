@@ -1,6 +1,6 @@
-"""Pydantic schemas for Issue API endpoints.
+"""Issue API 的 Pydantic schema。
 
-These schemas match the frontend TypeScript types for consistency.
+这些字段与前端 TypeScript 类型保持一致，构成前后端数据契约。
 """
 
 from datetime import datetime
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class IssueResponse(BaseModel):
-    """Issue response schema matching frontend Issue type."""
+    """与前端 Issue 类型对应的响应 schema。"""
 
     id: int = Field(..., description="GitHub issue ID")
     repository: str = Field(..., description="Repository in format 'owner/repo'")
@@ -27,13 +27,13 @@ class IssueResponse(BaseModel):
     github_url: str = Field(..., description="Direct link to GitHub issue")
 
     class Config:
-        """Pydantic config."""
+        """Pydantic 序列化配置。"""
 
         from_attributes = True
 
 
 class IssueCommentResponse(BaseModel):
-    """Issue comment response schema matching frontend IssueComment type."""
+    """与前端 IssueComment 类型对应的响应 schema。"""
 
     id: int = Field(..., description="GitHub comment ID")
     issue_number: int = Field(..., description="Issue number this comment belongs to")
@@ -44,6 +44,6 @@ class IssueCommentResponse(BaseModel):
     github_url: str = Field(..., description="Direct link to GitHub comment")
 
     class Config:
-        """Pydantic config."""
+        """Pydantic 序列化配置。"""
 
         from_attributes = True

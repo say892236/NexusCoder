@@ -1,11 +1,11 @@
-"""PR summary agent implementation."""
+"""PR Summary Agent 实现。"""
 
 from app.agents.base import BaseAgent
 from app.agents.prompts.summary_prompt import build_summary_prompt
 
 
 class SummaryAgent(BaseAgent):
-    """Autonomous agent that generates PR summary markdown."""
+    """根据 PR 上下文生成 Markdown summary 的自主 Agent。"""
 
     def __init__(
         self,
@@ -27,7 +27,7 @@ class SummaryAgent(BaseAgent):
         llm_client,
         **kwargs,
     ):
-        """Initialize summary agent with PR context and diff."""
+        """使用 PR 上下文与 diff 初始化 Summary Agent。"""
         system_prompt, initial_user_message = build_summary_prompt(
             repository=repository,
             pr_number=pr_number,

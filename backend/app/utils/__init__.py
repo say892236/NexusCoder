@@ -1,1 +1,1 @@
-"""Utility functions and helpers."""
+"""应用通用辅助函数。"""

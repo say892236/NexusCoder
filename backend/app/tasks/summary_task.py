@@ -1,4 +1,8 @@
-"""Celery task for PR description summary generation and update."""
+"""生成 PR summary 并更新 PR 描述的 Celery task。
+
+该流程复用 Sandbox、SummaryAgent、AgentLoop 与 Completion Tool，但仅提供理解变更所需的
+最小只读 Tool；生成结果后由编排层调用 GitHub API 更新 PR 标题或正文。
+"""
 
 import asyncio
 import logging
@@ -29,7 +33,7 @@ def process_pr_summary_with_agent(
     pr_number: int,
     mode: str = "append",
 ):
-    """Generate and write PR summary into PR description body."""
+    """Celery 同步入口：生成 summary 并写入 PR 描述。"""
     return asyncio.run(
         _process_pr_summary_with_agent_async(
             self,
@@ -50,7 +54,7 @@ async def _process_pr_summary_with_agent_async(
     pr_number: int,
     mode: str = "append",
 ):
-    """Async implementation for summary generation and PR description patch."""
+    """编排 Summary Agent 执行与 PR 描述更新的异步实现。"""
     sandbox = None
     sandbox_manager = None
     review = None

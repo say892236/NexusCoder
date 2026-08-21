@@ -1,4 +1,4 @@
-"""System prompt for the background coder agent (Issue → PR)."""
+"""后台 Coding Agent（Issue -> PR）的 system Prompt。"""
 
 CODER_SYSTEM_PROMPT = """## Your Identity
 
@@ -247,17 +247,17 @@ def build_coder_prompt(
     issue_body: str,
     custom_instructions: str = "",
 ) -> tuple[str, str]:
-    """Build coder prompt with dynamic variables.
+    """用动态 Issue 上下文构造 Coding Agent Prompt。
 
     Args:
-        repository: Repository name (owner/repo)
-        issue_number: GitHub issue number
-        issue_title: Issue title
-        issue_body: Issue description
-        custom_instructions: User-defined instructions
+        repository: Repository 名称（owner/repo）
+        issue_number: GitHub Issue 编号
+        issue_title: Issue 标题
+        issue_body: Issue 描述
+        custom_instructions: 用户补充指令
 
     Returns:
-        Tuple of (system_prompt, initial_user_message)
+        ``(system_prompt, initial_user_message)`` 元组
     """
     prompt = CODER_SYSTEM_PROMPT.format(
         repository=repository,
@@ -266,7 +266,7 @@ def build_coder_prompt(
         custom_instructions=custom_instructions or "No additional instructions.",
     )
 
-    # Add issue body as user message context
+    # Issue 正文属于本次任务上下文，放入首条用户消息而非稳定 system Prompt。
     user_context = f"""# GitHub Issue #{issue_number}
 
 **Title**: {issue_title}

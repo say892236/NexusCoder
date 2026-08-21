@@ -1,4 +1,4 @@
-"""Schemas for analytics endpoints."""
+"""统计分析 API 使用的 schema。"""
 
 from datetime import date
 
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class AnalyticsCardResponse(BaseModel):
-    """Single KPI card value for analytics page."""
+    """统计页单个 KPI 卡片数据。"""
 
     key: str = Field(..., description="Stable key identifier")
     label: str = Field(..., description="Card title")
@@ -16,7 +16,7 @@ class AnalyticsCardResponse(BaseModel):
 
 
 class SeverityDailyPoint(BaseModel):
-    """Daily findings breakdown by severity."""
+    """按严重级别拆分的每日发现数。"""
 
     date: date
     INFO: int
@@ -27,7 +27,7 @@ class SeverityDailyPoint(BaseModel):
 
 
 class CategoryDailyPoint(BaseModel):
-    """Daily findings breakdown by category."""
+    """按类别拆分的每日发现数。"""
 
     date: date
     BUG: int
@@ -41,7 +41,7 @@ class CategoryDailyPoint(BaseModel):
 
 
 class AnalyticsOverviewResponse(BaseModel):
-    """Analytics payload for the Statistics tab."""
+    """Statistics 标签页的统计载荷。"""
 
     repository: str
     window_days: int
@@ -51,7 +51,7 @@ class AnalyticsOverviewResponse(BaseModel):
 
 
 class DashboardAnalyticsResponse(BaseModel):
-    """Analytics payload for dashboard page cards."""
+    """Dashboard 卡片使用的统计载荷。"""
 
     repository: str
     window_days: int
@@ -59,7 +59,7 @@ class DashboardAnalyticsResponse(BaseModel):
 
 
 class SidebarAnalyticsResponse(BaseModel):
-    """Analytics payload for sidebar cards."""
+    """侧边栏卡片使用的统计载荷。"""
 
     repository: str
     window_days: int

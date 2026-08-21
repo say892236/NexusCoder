@@ -1,10 +1,10 @@
-"""File system operation tools using Daytona SDK."""
+"""通过 Daytona SDK 操作 Sandbox 文件系统的 Tool。"""
 
 from app.agents.tools.base import BaseTool, ToolDefinition, ToolResult
 
 
 class ReadFileTool(BaseTool):
-    """Read file contents from sandbox filesystem."""
+    """读取 Sandbox 文件内容。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -24,16 +24,16 @@ class ReadFileTool(BaseTool):
         )
 
     async def execute(self, file_path: str, **kwargs) -> ToolResult:
-        """Execute file read using Daytona fs.download_file()."""
+        """通过 ``Daytona fs.download_file()`` 执行文件读取。"""
         try:
-            # Auto-prefix relative paths with workspace/repo
+            # 相对路径统一解析到 Sandbox 内 clone 后的 Repository 根目录。
             if not file_path.startswith("/") and not file_path.startswith("workspace/"):
                 file_path = f"workspace/repo/{file_path}"
 
-            # Download file content from sandbox
+            # Daytona 返回字节内容，再由 Tool 转成 LLM 可消费的文本。
             content = self.sandbox.fs.download_file(file_path)
 
-            # Convert bytes to string
+            # 使用 UTF-8 解码 Repository 文本文件。
             if isinstance(content, bytes):
                 content = content.decode("utf-8")
 
@@ -47,7 +47,7 @@ class ReadFileTool(BaseTool):
 
 
 class ListFilesTool(BaseTool):
-    """List files and directories."""
+    """列出 Sandbox 中的文件和目录。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -67,15 +67,15 @@ class ListFilesTool(BaseTool):
         )
 
     async def execute(self, directory: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute directory listing using Daytona fs.list_files()."""
+        """通过 ``Daytona fs.list_files()`` 执行目录遍历。"""
         try:
-            # Auto-prefix relative paths with workspace/repo
+            # 相对路径统一从 Repository 根目录开始。
             if not directory.startswith("/") and not directory.startswith("workspace/"):
                 directory = f"workspace/repo/{directory}"
 
             files = self.sandbox.fs.list_files(directory)
 
-            # Convert to simple list format
+            # 精简 SDK 对象，只返回 Agent 判断下一步所需的字段。
             file_list = [
                 {
                     "name": f.name,
@@ -96,7 +96,7 @@ class ListFilesTool(BaseTool):
 
 
 class SearchFilesTool(BaseTool):
-    """Search for text in files (grep)."""
+    """在 Sandbox 文件中搜索文本，作用类似 grep。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -120,16 +120,16 @@ class SearchFilesTool(BaseTool):
         )
 
     async def execute(self, pattern: str, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """Execute search using Daytona fs.find_files()."""
+        """通过 ``Daytona fs.find_files()`` 执行搜索。"""
         try:
-            # Auto-prefix relative paths
+            # 相对路径自动补全为 Repository 工作目录。
             if not path.startswith("/") and not path.startswith("workspace/"):
                 path = f"workspace/repo/{path}"
 
-            # Use Daytona's built-in search
+            # 搜索实际在远程 Sandbox 中执行，不读取宿主机文件。
             results = self.sandbox.fs.find_files(path=path, pattern=pattern)
 
-            # Format results
+            # 将 SDK 搜索结果转换为稳定的 ToolResult 数据。
             matches = [
                 {"file": match.file, "line": match.line, "content": match.content}
                 for match in results
@@ -145,7 +145,7 @@ class SearchFilesTool(BaseTool):
 
 
 class ReplaceInFilesTool(BaseTool):
-    """Replace text in files."""
+    """替换 Sandbox 文件中的文本。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -176,9 +176,9 @@ class ReplaceInFilesTool(BaseTool):
     async def execute(
         self, files: list[str], pattern: str, replacement: str, **kwargs
     ) -> ToolResult:
-        """Execute replace using Daytona fs.replace_in_files()."""
+        """通过 ``Daytona fs.replace_in_files()`` 执行文本替换。"""
         try:
-            # Prefix files with workspace/repo if not absolute
+            # 仅对相对路径补全 Repository 前缀，绝对路径保持原样。
             full_paths = [f"workspace/repo/{f}" if not f.startswith("/") else f for f in files]
 
             self.sandbox.fs.replace_in_files(
@@ -199,7 +199,7 @@ class ReplaceInFilesTool(BaseTool):
 
 
 class CreateFileTool(BaseTool):
-    """Create a new file."""
+    """在 Sandbox 中创建新文件。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -220,7 +220,7 @@ class CreateFileTool(BaseTool):
         )
 
     async def execute(self, file_path: str, content: str, **kwargs) -> ToolResult:
-        """Execute file creation using Daytona fs.upload_file()."""
+        """通过 ``Daytona fs.upload_file()`` 上传内容并创建文件。"""
         try:
             full_path = f"workspace/repo/{file_path}"
             self.sandbox.fs.upload_file(content.encode("utf-8"), full_path)
@@ -235,7 +235,7 @@ class CreateFileTool(BaseTool):
 
 
 class DeleteFileTool(BaseTool):
-    """Delete a file."""
+    """删除 Sandbox 中的文件。"""
 
     @property
     def definition(self) -> ToolDefinition:
@@ -255,7 +255,7 @@ class DeleteFileTool(BaseTool):
         )
 
     async def execute(self, file_path: str, **kwargs) -> ToolResult:
-        """Execute file deletion using Daytona fs.delete_file()."""
+        """通过 ``Daytona fs.delete_file()`` 执行文件删除。"""
         try:
             full_path = f"workspace/repo/{file_path}"
             self.sandbox.fs.delete_file(full_path)

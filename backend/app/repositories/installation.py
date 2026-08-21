@@ -1,8 +1,6 @@
-"""Installation repository for database operations on Installation model.
+"""Installation model 的数据访问 Repository。
 
-Provides data access methods for managing GitHub App installations including
-creating installations, querying by repository, updating configuration, and
-managing active status. Handles JSONB config serialization automatically.
+封装 GitHub App Installation 的创建、查询、配置更新与启停操作，并统一处理 JSONB 配置。
 """
 
 from datetime import datetime, timezone
@@ -15,15 +13,14 @@ from app.models.installation import Installation
 
 
 class InstallationRepository:
-    """Data access layer for Installation model.
+    """Installation model 的数据访问层。
 
-    Encapsulates all database queries related to GitHub App installations,
-    providing methods to manage repository enrollment and review configuration.
+    集中封装 GitHub App Installation 查询，供 Repository 接入与 Review 配置管理使用。
     """
 
     @staticmethod
     async def get_by_id(db: AsyncSession, installation_id: UUID | str) -> Installation | None:
-        """Get installation by UUID.
+        """按 UUID 查询 Installation。
 
         Args:
             db: Database session
@@ -39,7 +36,7 @@ class InstallationRepository:
     async def get_by_github_installation_id(
         db: AsyncSession, github_installation_id: int
     ) -> Installation | None:
-        """Get installation by GitHub installation ID.
+        """按 GitHub Installation ID 查询 Installation。
 
         Args:
             db: Database session
@@ -59,7 +56,7 @@ class InstallationRepository:
     async def get_by_repository(
         db: AsyncSession, repository: str, active_only: bool = True
     ) -> Installation | None:
-        """Get installation by repository name.
+        """按 Repository 名称查询 Installation。
 
         Args:
             db: Database session
@@ -81,7 +78,7 @@ class InstallationRepository:
     async def get_user_installations(
         db: AsyncSession, user_id: UUID | str, active_only: bool = True
     ) -> list[Installation]:
-        """Get all installations for a specific user.
+        """查询指定用户的全部 Installation。
 
         Args:
             db: Database session
@@ -109,7 +106,7 @@ class InstallationRepository:
         repository: str,
         config: dict | None = None,
     ) -> Installation:
-        """Create new installation record.
+        """创建新的 Installation 记录。
 
         Args:
             db: Database session
@@ -143,7 +140,7 @@ class InstallationRepository:
     async def update_config(
         db: AsyncSession, installation: Installation, config: dict
     ) -> Installation:
-        """Update installation review configuration.
+        """更新 Installation 的 Review 配置。
 
         Args:
             db: Database session
@@ -162,7 +159,7 @@ class InstallationRepository:
 
     @staticmethod
     async def activate(db: AsyncSession, installation: Installation) -> Installation:
-        """Activate installation (enable reviews).
+        """激活 Installation，即启用 Review。
 
         Args:
             db: Database session
@@ -181,10 +178,9 @@ class InstallationRepository:
 
     @staticmethod
     async def deactivate(db: AsyncSession, installation: Installation) -> Installation:
-        """Deactivate installation (disable reviews).
+        """软停用 Installation，即关闭 Review。
 
-        Sets is_active=False and records suspension timestamp.
-        Preserves data for audit trail instead of deleting.
+        设置 ``is_active=False`` 并记录停用时间；保留历史数据而非物理删除。
 
         Args:
             db: Database session
@@ -203,10 +199,9 @@ class InstallationRepository:
 
     @staticmethod
     async def check_exists(db: AsyncSession, github_installation_id: int, repository: str) -> bool:
-        """Check if installation already exists for a repository.
+        """检查 Repository 是否已存在对应 Installation。
 
-        Useful for preventing duplicate enrollments when user tries
-        to enable reviews for a repository that's already enrolled.
+        用于阻止用户重复接入已经启用 Review 的 Repository。
 
         Args:
             db: Database session
@@ -228,9 +223,9 @@ class InstallationRepository:
 
     @staticmethod
     async def get_active_count(db: AsyncSession, user_id: UUID | str) -> int:
-        """Count active installations for a user.
+        """统计用户当前 active 的 Installation 数量。
 
-        Useful for usage limits or displaying stats in dashboard.
+        可用于用量限制或 dashboard 统计。
 
         Args:
             db: Database session

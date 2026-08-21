@@ -1,4 +1,9 @@
-"""Background coding agent API endpoints."""
+"""后台 Coding Agent 的 API 入口。
+
+学习主线：客户端调用 ``POST /api/agents/launch`` 后，本模块先保存一条
+``AgentRun(PENDING)``，再把其 ID 交给 Celery。后续耗时的 Sandbox、AgentLoop、
+Tool Calling 与 PR 创建都在 worker 中完成，HTTP 请求无需等待整个 Agent 执行结束。
+"""
 
 from __future__ import annotations
 
@@ -69,7 +74,7 @@ async def launch_agent(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> LaunchAgentResponse:
-    """Launch a background coding agent for a repository issue."""
+    """为指定 Repository Issue 创建 AgentRun，并投递后台 Celery task。"""
     repository = payload.repository.strip()
     if "/" not in repository:
         raise HTTPException(status_code=400, detail="Invalid repository format. Use 'owner/repo'.")
@@ -79,7 +84,7 @@ async def launch_agent(
             and_(
                 Installation.repository == repository,
                 Installation.user_id == current_user.id,
-                Installation.is_active == True,  # noqa: E712
+                Installation.is_active == True,  # noqa: E712；SQLAlchemy 表达式不能写成普通布尔判断
             )
         )
     )
@@ -140,7 +145,7 @@ async def list_agent_runs(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[AgentRunListItemResponse]:
-    """List agent runs for a repository, optionally scoped to one issue."""
+    """列出当前用户在 Repository 下的 AgentRun，可按 Issue 编号过滤。"""
     filters = [
         AgentRun.user_id == current_user.id,
         AgentRun.repository == repository,
@@ -169,7 +174,7 @@ async def get_agent_run(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AgentRunDetailResponse:
-    """Get detailed information for a single agent run."""
+    """读取单次 AgentRun 的状态、执行轨迹与最终 PR 结果。"""
     run = (
         (
             await db.execute(

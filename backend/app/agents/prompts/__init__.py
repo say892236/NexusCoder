@@ -1,4 +1,4 @@
-"""System prompts for different agent types."""
+"""不同 Agent 类型使用的 system Prompt。"""
 
 from app.agents.prompts.coder_prompt import CODER_SYSTEM_PROMPT, build_coder_prompt
 from app.agents.prompts.reviewer_prompt import (

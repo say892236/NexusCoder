@@ -1,4 +1,4 @@
-"""System prompt for the PR summary agent."""
+"""PR Summary Agent 的 system Prompt。"""
 
 SUMMARY_SYSTEM_PROMPT = """# Identity
 
@@ -201,24 +201,24 @@ def build_summary_prompt(
     language: str | None = None,
     custom_instructions: str = "",
 ) -> tuple[str, str]:
-    """Build summary prompt with dynamic variables.
+    """使用动态 PR 上下文构造 Summary Agent Prompt。
 
     Args:
-        repository: Repository name (owner/repo)
-        pr_number: Pull request number
-        pr_title: PR title
-        pr_description: PR description
-        author: PR author username
-        base_branch: Base branch (default: main)
-        head_branch: Head branch
-        files_changed: Number of files changed
-        lines_added: Lines added
-        lines_removed: Lines removed
-        language: Primary language
-        custom_instructions: User-defined instructions
+        repository: Repository 名称（owner/repo）
+        pr_number: PR 编号
+        pr_title: PR 标题
+        pr_description: PR 描述
+        author: PR 作者用户名
+        base_branch: 基础 Branch，默认 main
+        head_branch: 提交变更的 Branch
+        files_changed: 变更文件数
+        lines_added: 新增行数
+        lines_removed: 删除行数
+        language: 主要编程语言
+        custom_instructions: 用户补充指令
 
     Returns:
-        Tuple of (system_prompt, initial_user_message)
+        ``(system_prompt, initial_user_message)`` 元组
     """
     prompt = SUMMARY_SYSTEM_PROMPT.format(
         repository=repository,
@@ -233,7 +233,7 @@ def build_summary_prompt(
         custom_instructions=custom_instructions or "No additional instructions.",
     )
 
-    # Add PR context as user message
+    # 将本次 PR 详情作为用户消息，与稳定的 system Prompt 分离。
     user_context = f"""# Pull Request #{pr_number}
 
 **Title**: {pr_title}

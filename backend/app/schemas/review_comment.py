@@ -1,4 +1,4 @@
-"""Pydantic schemas for review comment APIs."""
+"""Review comment API 使用的 Pydantic schema。"""
 
 from datetime import datetime
 from uuid import UUID
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class ReviewCommentListItemResponse(BaseModel):
-    """Review comment fields persisted in the review_comments table."""
+    """持久化到 review_comments 表的评论字段。"""
 
     id: UUID = Field(..., description="Review comment UUID")
     review_id: UUID = Field(..., description="Parent review UUID")
@@ -22,13 +22,13 @@ class ReviewCommentListItemResponse(BaseModel):
     created_at: datetime = Field(..., description="Comment creation timestamp")
 
     class Config:
-        """Pydantic config."""
+        """Pydantic 序列化配置。"""
 
         from_attributes = True
 
 
 class ReviewContextResponse(BaseModel):
-    """Context pulled from the parent review row."""
+    """从父 Review 记录读取的上下文字段。"""
 
     repository: str = Field(..., description="Repository in format 'owner/repo'")
     pr_number: int = Field(..., description="Pull request number")
@@ -37,14 +37,14 @@ class ReviewContextResponse(BaseModel):
 
 
 class ReviewCommentWithContextResponse(BaseModel):
-    """Review comment with related review context for analytics and listings."""
+    """携带 Review 上下文的 comment，用于统计与列表展示。"""
 
     comment: ReviewCommentListItemResponse
     review: ReviewContextResponse
 
 
 class ReviewCommentListResponse(BaseModel):
-    """Paginated review comment list response."""
+    """分页 Review comment 列表响应。"""
 
     items: list[ReviewCommentWithContextResponse]
     total: int = Field(..., description="Total matching comments")

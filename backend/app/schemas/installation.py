@@ -1,15 +1,13 @@
-"""Pydantic schemas for Installation API requests and responses.
+"""Installation API 请求与响应的 Pydantic schema。
 
-Defines data validation models for installation management endpoints
-including listing installations, enrolling repositories, and configuring
-review settings.
+覆盖 Installation 列表、Repository 接入和 Review 配置等数据契约。
 """
 
 from pydantic import BaseModel, Field
 
 
 class InstallationConfigSchema(BaseModel):
-    """Schema for installation review configuration."""
+    """Installation 的 Review 配置 schema。"""
 
     sensitivity: str = Field(
         default="MEDIUM",
@@ -33,7 +31,7 @@ class InstallationConfigSchema(BaseModel):
 
 
 class InstallationResponse(BaseModel):
-    """Schema for Installation response (from database)."""
+    """数据库 Installation 的响应 schema。"""
 
     id: str = Field(description="Installation UUID")
     github_installation_id: int = Field(description="GitHub installation ID")
@@ -48,7 +46,7 @@ class InstallationResponse(BaseModel):
 
 
 class EnableRepositoryRequest(BaseModel):
-    """Request schema for enabling repository reviews."""
+    """为 Repository 启用 Review 的请求 schema。"""
 
     github_installation_id: int = Field(description="GitHub installation ID")
     repository: str = Field(
@@ -68,13 +66,13 @@ class EnableRepositoryRequest(BaseModel):
 
 
 class UpdateConfigRequest(BaseModel):
-    """Request schema for updating installation configuration."""
+    """更新 Installation 配置的请求 schema。"""
 
     config: InstallationConfigSchema = Field(description="Updated review configuration")
 
 
 class SyncInstallationsResponse(BaseModel):
-    """Response schema for syncing installations."""
+    """同步 Installation 的响应 schema。"""
 
     synced: int = Field(description="Number of installations synced")
     created: int = Field(description="Number of new installations created")

@@ -1,4 +1,4 @@
-"""Tools for progressive posting of review findings to GitHub."""
+"""将 Review Agent 发现的问题渐进式发布到 GitHub 的 Tool。"""
 
 from __future__ import annotations
 
@@ -22,12 +22,12 @@ CATEGORY_VALUES = {
 
 
 def _see_more_footer_markdown() -> str:
-    """Build the See More footer in markdown form for GitHub rendering."""
+    """构造供 GitHub 渲染的 Markdown “See More” 页脚。"""
     base_url = (settings.FRONTEND_URL or "http://localhost:5173").rstrip("/")
     target_url = f"{base_url}/dashboard/analytics"
 
-    # SVG badge (Shields) tuned to Metis palette and readability.
-    # labelColor: near-black, color: warm Metis orange.
+    # SVG badge（Shields）使用 Metis 配色并兼顾可读性。
+    # labelColor 为近黑色，color 为暖橙色。
     badge_url = (
         "https://img.shields.io/badge/"
         "METIS-SEE%20MORE%20DETAILS-FF9F1C"
@@ -81,7 +81,7 @@ def _build_finding_body(
 
 
 def _to_int_or_none(value: object) -> int | None:
-    """Convert numeric values to int when possible."""
+    """在可行时把数值转换为 int。"""
     if value is None:
         return None
     try:
@@ -98,7 +98,7 @@ def _normalize_title(title: str) -> str:
 
 
 class PostInlineReviewFindingTool(BaseTool):
-    """Post inline review finding to GitHub and persist it."""
+    """把行级审查发现发布到 GitHub，并持久化本地记录。"""
 
     def __init__(
         self,
@@ -250,7 +250,7 @@ class PostInlineReviewFindingTool(BaseTool):
 
 
 class PostFileReviewFindingTool(BaseTool):
-    """Post file-level review finding to GitHub and persist it."""
+    """把文件级审查发现发布到 GitHub，并持久化本地记录。"""
 
     def __init__(
         self,
@@ -360,7 +360,7 @@ class PostFileReviewFindingTool(BaseTool):
                     review_id=self.review_id,
                     title=normalized_title,
                     file_path=file_path,
-                    # No schema change requested; keep sentinel line for file-level findings.
+            # 数据库 schema 未区分文件级位置，因此使用 sentinel 行号保存该类发现。
                     line_number=1,
                     line_end=None,
                     comment_text=body,

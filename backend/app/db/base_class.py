@@ -1,4 +1,4 @@
-"""Base model class with common fields."""
+"""包含通用字段的 ORM model 基类。"""
 
 import uuid
 from datetime import datetime, timezone
@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 
 class BaseModel:
-    """Base class for all models with common fields."""
+    """为所有 model 提供 UUID 与创建、更新时间字段。"""
 
     id = Column(
         UUID(as_uuid=True),

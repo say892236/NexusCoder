@@ -1,8 +1,7 @@
-"""GitHub OAuth service for user authentication.
+"""用于用户认证的 GitHub OAuth 服务。
 
-Handles the complete OAuth flow with GitHub including authorization
-redirect, code exchange for tokens, and fetching user profile information.
-Integrates with the User model to create/update user accounts.
+封装授权跳转、authorization code 换取 token、读取用户资料的完整 OAuth 流程，
+上层 API 再把结果用于创建或更新 User。
 """
 
 from typing import Any
@@ -13,36 +12,35 @@ from app.core.config import settings
 
 
 class GitHubOAuthService:
-    """Service for GitHub OAuth authentication flow.
+    """GitHub OAuth 认证流程服务。
 
-    Implements the three-step OAuth flow: redirect to GitHub, receive callback
-    with authorization code, exchange code for access token, fetch user info.
+    实现三段式流程：跳转 GitHub 授权、接收携带 authorization code 的 callback、
+    用 code 换取 access token 并获取用户资料。
     """
 
     def __init__(self) -> None:
-        """Initialize GitHub OAuth service with API endpoints."""
+        """使用 GitHub OAuth API endpoint 初始化服务。"""
         self.authorize_url = "https://github.com/login/oauth/authorize"
         self.token_url = "https://github.com/login/oauth/access_token"
         self.user_api_url = "https://api.github.com/user"
         self.installations_url = "https://api.github.com/user/installations"
 
     def get_authorization_url(self) -> str:
-        """Generate GitHub OAuth authorization URL."""
+        """生成 GitHub OAuth 授权 URL。"""
         params = {
             "client_id": settings.GITHUB_CLIENT_ID,
             "redirect_uri": f"{settings.FRONTEND_URL}/auth/callback",
-            "scope": "user:email read:org",  # Permissions we need
+            "scope": "user:email read:org",  # 当前登录与邮箱读取流程需要的 scope。
         }
 
         query_string = "&".join(f"{k}={v}" for k, v in params.items())
         return f"{self.authorize_url}?{query_string}"
 
     async def exchange_code_for_token(self, code: str) -> dict[str, Any]:
-        """Exchange authorization code for access token.
+        """用 authorization code 换取 access token。
 
-        After user authorizes, GitHub redirects back with a code.
-        We exchange this code for an access_token that lets us
-        make API calls on behalf of the user.
+        用户授权后 GitHub 携带 code 跳回应用；服务用该 code 换取 access token，
+        之后应用才能代表用户调用 GitHub API。
         """
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -64,10 +62,9 @@ class GitHubOAuthService:
             return data
 
     async def get_user_info(self, access_token: str) -> dict[str, Any]:
-        """Fetch user profile information from GitHub API.
+        """从 GitHub API 读取用户资料。
 
-        Uses the access token to get user's GitHub profile including
-        username, email, avatar, and unique GitHub ID.
+        使用 access token 获取用户名、邮箱、头像和唯一 GitHub ID。
         """
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -83,10 +80,9 @@ class GitHubOAuthService:
             return user_data
 
     async def get_user_installations(self, access_token: str) -> dict[str, Any]:
-        """Get user's GitHub App installations.
+        """读取用户的 GitHub App Installation。
 
-        Returns list of repositories/orgs where the user has installed
-        the Metis GitHub App. Used for repository enrollment.
+        返回用户安装 Metis GitHub App 的 Repository 或组织，供 Repository 接入流程使用。
         """
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -102,5 +98,5 @@ class GitHubOAuthService:
             return data
 
 
-# Global instance
+# 供依赖方复用的模块级服务实例。
 github_oauth = GitHubOAuthService()
