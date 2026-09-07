@@ -34,15 +34,35 @@ class AgentState(BaseModel):
 
     agent_id: str
     status: AgentStatus = AgentStatus.PENDING
+
     iteration: int = 0
+
+    # 所有请求处理的总 Token：
+    # prompt_tokens + completion_tokens。
     tokens_used: int = 0
+
+    # 输入 Token 总量。
+    prompt_tokens: int = 0
+
+    # 模型输出 Token 总量。
+    completion_tokens: int = 0
+
+    # DeepSeek Context Cache 命中输入 Token。
+    cache_hit_tokens: int = 0
+
+    # 未命中缓存的输入 Token。
+    cache_miss_tokens: int = 0
+
     tool_calls_made: int = 0
+
     start_time: float = Field(default_factory=time.time)
     last_update: float = Field(default_factory=time.time)
+
     context: dict[str, Any] = Field(default_factory=dict)
     result: dict[str, Any] | None = None
     error: str | None = None
-    messages: list[dict[str, str]] = Field(default_factory=list)
+
+    messages: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class BaseAgent(ABC):
@@ -55,10 +75,10 @@ class BaseAgent(ABC):
         initial_user_message: str,
         tools,
         llm_client,
-        max_iterations: int = 50,
-        max_tokens: int = 200_000,
-        max_tool_calls: int = 100,
-        max_duration_seconds: int = 300,
+        max_iterations: int = 20,
+        max_tokens: int = 100_000,
+        max_tool_calls: int = 30,
+        max_duration_seconds: int = 180,
     ):
         """初始化 Agent 的 Prompt、Tool、LLM 客户端与资源预算。
 
@@ -118,10 +138,114 @@ class BaseAgent(ABC):
 
             # 以响应 usage 为准累计真实 token 消耗，而不是本地估算。
             if hasattr(response, "usage") and response.usage:
-                tokens_this_call = response.usage.total_tokens
-                self.state.tokens_used += tokens_this_call
+                usage = response.usage
+
+                prompt_tokens = int(
+                    getattr(usage, "prompt_tokens", 0)
+                    or 0
+                )
+
+                completion_tokens = int(
+                    getattr(usage, "completion_tokens", 0)
+                    or 0
+                )
+
+                total_tokens = int(
+                    getattr(usage, "total_tokens", 0)
+                    or 0
+                )
+
+                # =====================================================
+                # Context Cache
+                # =====================================================
+
+                # DeepSeek 原生 usage 可能直接提供：
+                # prompt_cache_hit_tokens /
+                # prompt_cache_miss_tokens。
+                cache_hit_tokens = int(
+                    getattr(
+                        usage,
+                        "prompt_cache_hit_tokens",
+                        0,
+                    )
+                    or 0
+                )
+
+                cache_miss_tokens = int(
+                    getattr(
+                        usage,
+                        "prompt_cache_miss_tokens",
+                        0,
+                    )
+                    or 0
+                )
+
+                # LiteLLM 还会把缓存命中统一映射到
+                # prompt_tokens_details.cached_tokens。
+                prompt_details = getattr(
+                    usage,
+                    "prompt_tokens_details",
+                    None,
+                )
+
+                if (
+                    cache_hit_tokens == 0
+                    and prompt_details is not None
+                ):
+                    if isinstance(prompt_details, dict):
+                        cache_hit_tokens = int(
+                            prompt_details.get(
+                                "cached_tokens",
+                                0,
+                            )
+                            or 0
+                        )
+                    else:
+                        cache_hit_tokens = int(
+                            getattr(
+                                prompt_details,
+                                "cached_tokens",
+                                0,
+                            )
+                            or 0
+                        )
+
+                # 如果 LiteLLM 没保留 DeepSeek 的 miss 字段，
+                # 可根据 prompt 总量计算。
+                if cache_miss_tokens == 0:
+                    cache_miss_tokens = max(
+                        prompt_tokens - cache_hit_tokens,
+                        0,
+                    )
+
+                # =====================================================
+                # 累计 Agent Token Metrics
+                # =====================================================
+
+                self.state.tokens_used += total_tokens
+
+                self.state.prompt_tokens += prompt_tokens
+
+                self.state.completion_tokens += (
+                    completion_tokens
+                )
+
+                self.state.cache_hit_tokens += (
+                    cache_hit_tokens
+                )
+
+                self.state.cache_miss_tokens += (
+                    cache_miss_tokens
+                )
+
                 self.agent_logger.debug(
-                    f"Tokens: {tokens_this_call} - this call, {self.state.tokens_used} total"
+                    "Token usage: "
+                    f"prompt={prompt_tokens}, "
+                    f"cache_hit={cache_hit_tokens}, "
+                    f"cache_miss={cache_miss_tokens}, "
+                    f"completion={completion_tokens}, "
+                    f"total={total_tokens}, "
+                    f"agent_total={self.state.tokens_used}"
                 )
 
             # 同时提取自然语言内容和结构化 tool_calls。
@@ -167,44 +291,82 @@ class BaseAgent(ABC):
             return False
 
     def should_stop(self) -> bool:
-        """根据完成状态与资源预算判断是否停止 Agent。
+        """
+        根据完成状态与资源预算判断是否停止 Agent。
 
         Returns:
             需要停止时返回 True，否则返回 False。
         """
+
         # 已完成或失败的 Agent 不再进入下一轮。
-        if self.state.status in (AgentStatus.COMPLETED, AgentStatus.FAILED):
+        if self.state.status in (
+            AgentStatus.COMPLETED,
+            AgentStatus.FAILED,
+        ):
             return True
 
         # 迭代轮数上限。
         if self.state.iteration >= self.max_iterations:
+            reason = "max_iterations_reached"
+
             logger.warning(f"Agent {self.agent_id} reached max iterations: {self.state.iteration}")
-            self.state.status = AgentStatus.COMPLETED
-            self.state.result = {"reason": "max_iterations_reached"}
+
+            self.state.status = AgentStatus.FAILED
+            self.state.error = reason
+            self.state.result = {
+                "completed": False,
+                "reason": reason,
+            }
+
             return True
 
-        # token 预算上限。
+        # Token 预算上限。
         if self.state.tokens_used >= self.max_tokens:
+            reason = "max_tokens_reached"
+
             logger.warning(f"Agent {self.agent_id} reached max tokens: {self.state.tokens_used}")
-            self.state.status = AgentStatus.COMPLETED
-            self.state.result = {"reason": "max_tokens_reached"}
+
+            self.state.status = AgentStatus.FAILED
+            self.state.error = reason
+            self.state.result = {
+                "completed": False,
+                "reason": reason,
+            }
+
             return True
 
         # Tool 调用次数上限。
         if self.state.tool_calls_made >= self.max_tool_calls:
+            reason = "max_tool_calls_reached"
+
             logger.warning(
                 f"Agent {self.agent_id} reached max tool calls: {self.state.tool_calls_made}"
             )
-            self.state.status = AgentStatus.COMPLETED
-            self.state.result = {"reason": "max_tool_calls_reached"}
+
+            self.state.status = AgentStatus.FAILED
+            self.state.error = reason
+            self.state.result = {
+                "completed": False,
+                "reason": reason,
+            }
+
             return True
 
         # 总执行时长上限。
         elapsed = time.time() - self.state.start_time
+
         if elapsed >= self.max_duration_seconds:
+            reason = "max_duration_reached"
+
             logger.warning(f"Agent {self.agent_id} reached max duration: {elapsed:.2f}s")
-            self.state.status = AgentStatus.COMPLETED
-            self.state.result = {"reason": "max_duration_reached"}
+
+            self.state.status = AgentStatus.FAILED
+            self.state.error = reason
+            self.state.result = {
+                "completed": False,
+                "reason": reason,
+            }
+
             return True
 
         return False
@@ -237,7 +399,7 @@ class BaseAgent(ABC):
         """
         for result in tool_results.values():
             if result.success and result.data:
-        # 约定由 metadata.type=completion 且 data.completed=true 表示完成。
+        # 只要 ToolResult.data.completed=True，就视为完成。
                 if isinstance(result.data, dict) and result.data.get("completed"):
                     return True
         return False
@@ -245,7 +407,7 @@ class BaseAgent(ABC):
     def _extract_final_result(self, tool_results: dict) -> dict[str, Any]:
         """从完成 Tool 中提取要持久化的最终结构化结果。
 
-        Args:
+        Args:j
             tool_results: Tool call ID 到 ToolResult 的映射
 
         Returns:

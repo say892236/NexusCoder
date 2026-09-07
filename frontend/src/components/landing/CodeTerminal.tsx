@@ -33,7 +33,7 @@ export const CodeTerminal: React.FC = () => {
               <div className="h-3 w-3 rounded-full border border-white/20 bg-[var(--metis-red)]"></div>
               <div className="h-3 w-3 rounded-full border border-white/20 bg-[var(--metis-orange-dark)]"></div>
               <div className="h-3 w-3 rounded-full border border-white/20 bg-white"></div>
-              <div className="ml-4 text-xs font-semibold text-white/70">metis-bot — bash</div>
+              <div className="ml-4 text-xs font-semibold text-white/70">nexuscoder-bot — bash</div>
             </div>
 
             {/* Terminal Content */}
@@ -53,7 +53,7 @@ export const CodeTerminal: React.FC = () => {
 
               <div className="animate-pulse">
                 <p className="mb-2 font-bold text-white">
-                  <span className="text-[var(--metis-red)]">@metis-bot</span> is analyzing
+                  <span className="text-[var(--metis-red)]">@nexuscoder-bot</span> is analyzing
                   changes...
                 </p>
               </div>

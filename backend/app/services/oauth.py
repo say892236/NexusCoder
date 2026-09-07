@@ -29,7 +29,7 @@ class GitHubOAuthService:
         """生成 GitHub OAuth 授权 URL。"""
         params = {
             "client_id": settings.GITHUB_CLIENT_ID,
-            "redirect_uri": f"{settings.FRONTEND_URL}/auth/callback",
+            "redirect_uri": "http://localhost:8000/auth/callback/github",
             "scope": "user:email read:org",  # 当前登录与邮箱读取流程需要的 scope。
         }
 
@@ -82,7 +82,7 @@ class GitHubOAuthService:
     async def get_user_installations(self, access_token: str) -> dict[str, Any]:
         """读取用户的 GitHub App Installation。
 
-        返回用户安装 Metis GitHub App 的 Repository 或组织，供 Repository 接入流程使用。
+        返回用户安装 NexusCoder GitHub App 的 Repository 或组织，供 Repository 接入流程使用。
         """
         async with httpx.AsyncClient() as client:
             response = await client.get(

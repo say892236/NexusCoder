@@ -1,7 +1,7 @@
 # Security Policy
 
 ## Supported Versions
-Metis is under active development. Security fixes are applied to the latest `main` branch and to the most recent tagged release when available.
+NexusCoder is under active development. Security fixes are applied to the latest `main` branch and to the most recent tagged release when available.
 
 ## Reporting a Vulnerability
 Please do not open public issues for security vulnerabilities.

@@ -1,460 +1,427 @@
-<p align="center">
-  <img src="static/metis-logo.svg" alt="Metis logo" width="520" />
-</p>
-<p align="center">AI 驱动的 GitHub Code Review 平台</p>
+# NexusCoder
 
-<p align="center">
-  <a href="https://github.com/KacemMathlouthi/metis">
-    <img src="https://img.shields.io/badge/METIS-SEE%20MORE%20DETAILS-FF9F1C?style=for-the-badge&labelColor=111111&logo=github&logoColor=FFFFFF" alt="Metis See More Details" />
-  </a>
-</p>
+> 基于 LangGraph 的 Multi-Agent Coding Agent：从 GitHub Issue 接收任务，在隔离 Sandbox 中完成编码、测试与审查，经人工批准后创建 Pull Request。
 
-<p align="center">
-  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" />
-  <img src="https://img.shields.io/badge/Celery-37814A?style=for-the-badge&logo=celery&logoColor=white" alt="Celery" />
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/Daytona-Sandbox-111111?style=for-the-badge&logo=docker&logoColor=white" alt="Daytona Sandbox" />
-  <img src="https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&labelColor=111111&logo=kubernetes&logoColor=white" alt="Kubernetes" />
-</p>
+NexusCoder 将一次编码任务拆分为可追踪、可重试、可暂停恢复的工作流。FastAPI 接收请求并校验 GitHub Repository 权限，Celery 在后台执行长任务，LangGraph 编排 Supervisor、Coder、Tester、Reviewer 和 Human Approval，Daytona 提供隔离执行环境，PostgreSQL 同时保存业务状态、长期记忆和 LangGraph Checkpoint。
 
-<p align="center">
-  <img src="frontend/src/assets/Handshake-with-AI.png" alt="Human and AI handshake" width="100%" />
-</p>
+项目当前处于持续开发阶段，不应视为 production-ready。本文只描述当前仓库中已经实现的能力、已有验证记录和已知限制。
 
-## 项目概述
+## Overview
 
-Metis 是一个以 GitHub App 形式构建、由 AI 驱动的 GitHub Code Reviewer。它监听 Pull Request webhook，在隔离的 Sandbox 中分析变更，并将可操作的问题直接发布到 PR 上。
+传统的单轮代码生成很难覆盖完整的软件交付过程：模型不仅要修改文件，还要理解 Repository、运行测试、处理失败反馈、审查最终 Diff，并在产生外部副作用前让人确认。
 
-**生产级 Monorepo**：
-- **Backend**：Python、FastAPI、Celery、PostgreSQL、Redis、AI Agent
-- **Frontend**：React 19、TypeScript、Vite（Rolldown）、Tailwind v4、Neo-brutalist UI
-- **Agent Runtime**：Daytona Sandbox + 工具增强型 LLM Agent
-- **多 LLM 支持**：LiteLLM（Vertex AI、OpenAI、Anthropic、Mistral）
+NexusCoder 为此提供两层执行模型：
 
-## 核心能力
+- **Outer Workflow**：LangGraph `StateGraph` 管理 `Supervisor → Coder → Tester → Reviewer → Human Approval`，负责路由、重试、状态持久化和恢复。
+- **Inner Agent Loop**：Coder 与 Reviewer 内部使用 `AgentLoop`，重复执行 `LLM → Tool Call → Observation → LLM`，直到 Completion Tool 返回结构化结果，或达到迭代、Token、Tool Call 上限。
 
-### AI 驱动的 Code Review
-- **自主 Agent** 在隔离的 Sandbox 中分析 PR
-- **渐进式行内问题** 直接发布到 Diff 对应行
-- **多 LLM Provider 支持**——只需更改一个环境变量即可切换 Provider
-- **可配置的敏感度**——支持从 INFO 到 CRITICAL 的问题级别
-- **分类标签**——SECURITY、PERFORMANCE、BUG、STYLE 等
+当前主链路面向 GitHub Issue：任务完成后，Coder 先把分支推送到远端；只有自动测试通过、Reviewer 批准且人工确认后，外层任务才调用 GitHub API 创建 Pull Request。
 
-### Issue 到 PR 工作流
-- 从 GitHub Issue 启动**自主 Coding Agent**
-- Agent 编写代码、运行测试、Commit 并创建 PR
-- 通过指标和时间线实时跟踪进度
-- 完整持久化对话和 Tool Trace
+## Core Workflow
 
-### Repository 管理
-- **多 Repository 支持**——一个 GitHub App 管理多个 Repo
-- **按 Repository 配置**——自定义指令和忽略模式
-- **GitHub OAuth 集成**——安全的用户身份认证
-
-### Analytics Dashboard
-- Review 指标和趋势
-- 带筛选功能的 AI 检测问题表格
-- Agent 运行历史和性能指标
-- 实时进度监控
-
-## 目录
-
-- [架构](#架构)
-- [Repository 结构](#repository-结构)
-- [快速开始](#快速开始)
-- [文档](#文档)
-- [开发](#开发)
-- [测试与质量](#测试与质量)
-- [部署](#部署)
-- [安全](#安全)
-- [参与贡献](#参与贡献)
-- [许可证](#许可证)
-
-## 架构
-
-### 高层系统设计
-
-```
-┌─────────────┐
-│   GitHub    │
-│   Webhooks  │
-└──────┬──────┘
-       │ Pull Request Event
-       ▼
-┌───────────────────────────────────┐
-│       FastAPI Backend             │
-│  ┌─────────────────────────────┐  │
-│  │   Webhook Handler           │  │
-│  │   - Verify signature        │  │
-│  │   - Create Review (PENDING) │  │
-│  │   - Queue Celery tasks      │  │
-│  │   - Return 202 Accepted     │  │
-│  └─────────────┬───────────────┘  │
-│                │                  │
-└────────────────┼──────────────────┘
-                 │
-                 ▼
-         ┌───────────────┐
-         │  Redis Queue  │
-         └───────┬───────┘
-                 │
-                 ▼
-┌─────────────────────────────────────┐
-│       Celery Worker                 │
-│  ┌───────────────────────────────┐  │
-│  │   AI Agent System             │  │
-│  │                               │  │
-│  │  1. Create Daytona Sandbox    │  │
-│  │  2. Clone PR Branch           │  │
-│  │  3. Run Agent Loop:           │  │
-│  │     - Plan (LLM)              │  │
-│  │     - Execute Tools           │  │
-│  │     - Post Findings           │  │
-│  │     - Evaluate                │  │
-│  │  4. Post Final Review         │  │
-│  │  5. Cleanup Sandbox           │  │
-│  └───────────────────────────────┘  │
-└─────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[GitHub Issue] --> B[FastAPI]
+    B --> C[Celery / Redis]
+    C --> D[Daytona Sandbox]
+    D --> E[Clone Repository]
+    E --> F[Repository-scoped Memory Recall]
+    F --> G[LangGraph Supervisor]
+    G --> H[Coder]
+    H --> I[Tester / pytest]
+    I -->|失败且未达上限| H
+    I -->|通过| J[Reviewer]
+    J -->|Request Changes 且未达上限| H
+    J -->|Approve| K[HITL interrupt]
+    K --> L{Human Decision}
+    L -->|Reject| M[CANCELED]
+    L -->|Approve| N[PostgreSQL Checkpoint Resume]
+    N --> O[Create GitHub Pull Request]
 ```
 
-### 核心请求流程
+Supervisor 当前最多累计 3 次测试或审查重试。测试持续失败、Coder/Reviewer Runtime 失败，或人工拒绝时，工作流会以明确的失败或取消状态结束。
 
-1. **GitHub 发送 webhook**，通知 PR 变更（opened、synchronize、reopened）
-2. **Backend 校验签名**并记录待处理 Review
-3. **Celery 将 Agent Task 加入队列**，用于 Review 和 Summary 生成
-4. **Agent 在 Sandbox 中执行**，并拥有受控的工具访问权限：
-   - 读取文件并分析代码
-   - 运行测试和 Linter
-   - 渐进式发布行内问题
-   - 生成最终 Review Summary
-5. **问题发布到 GitHub**，作为 Review Comment，并持久化到数据库
-6. **Frontend Dashboard** 展示进度、Analytics 和 Repository 控制项
+## Architecture
 
-### Agent 工具
+| 层次 | 当前职责 | 主要实现 |
+| --- | --- | --- |
+| API | GitHub OAuth、Installation 同步、Issue 查询、任务启动、人工批准/拒绝 | FastAPI，`backend/app/api/` |
+| Background Task | 执行长时间 Agent 任务、维护 `AgentRun` 状态、处理重试和最终 PR 副作用 | Celery、Redis，`backend/app/tasks/` |
+| Outer Workflow | 多 Agent 路由、质量门禁、重试、HITL | LangGraph `StateGraph`，`backend/app/agents/multi_agent/` |
+| Inner Agent Loop | 模型调用、Tool Calling、Observation 回填、Completion 检测和资源上限 | `BaseAgent`、`AgentLoop` |
+| Tools | 文件、Git、Shell、测试、Lint、Diff 和 Completion Tool | `backend/app/agents/tools/` |
+| Sandbox | 隔离执行、Repository clone、命令与 Git 操作 | Daytona、`MockSandbox` |
+| Persistence | 用户、Installation、Review、AgentRun、Memory | PostgreSQL、SQLAlchemy、Alembic |
+| Workflow Persistence | 按 `thread_id` 保存和恢复 LangGraph 状态 | PostgreSQL Checkpointer |
+| Long-Term Memory | 成功任务经验提炼、Embedding、Repository 级召回 | PostgreSQL、pgvector |
+| Observability | Workflow Trace、Memory Trace、Agent 消息轨迹和 Token/Cache 指标 | LangSmith、`AgentRun`、Graph State |
 
-**可用工具（共 23 个）**：
-- 文件操作（6）：读取、列出、搜索、替换、创建、删除
-- Git 操作（8）：状态、分支、创建分支、Checkout、Add、Commit、Push、Pull
-- 进程执行（4）：命令、代码、测试、Linter
-- Review 发布（2）：`post_inline_finding`、`post_file_finding`
-- 完成工具（3）：`finish_review`、`finish_task`、`finish_summary`
+FastAPI 不直接执行耗时的 Coding Workflow。它创建 `AgentRun` 并向 Celery 投递轻量任务；Worker 负责获取 GitHub 凭据、创建 Sandbox、运行 Graph、保存状态并处理 PR 创建。这使 HTTP 请求生命周期与长时间、可重试的 Agent 任务相互隔离。
 
-### 多 LLM 支持
+## Multi-Agent Design
 
-通过一个环境变量切换 AI Provider：
+### Supervisor
 
-```bash
-# Vertex AI (Google)
-MODEL_NAME=vertex_ai/gemini-3-flash-preview
+Supervisor 是确定性的路由节点，不调用 LLM。它根据当前节点结果选择 Coder、Tester、Reviewer、Human Approval 或结束流程：
 
-# OpenAI
-MODEL_NAME=gpt-4o
+- Coder 必须通过 `finish_task` 返回完成状态，才能进入 Tester。
+- Tester 失败会把测试结果反馈给下一轮 Coder。
+- Reviewer 返回 `REQUEST_CHANGES` 时会把审查结果反馈给 Coder。
+- 达到重试上限后停止，避免无限循环。
+- Reviewer 批准且启用 HITL 时，路由到 Human Approval。
 
-# Anthropic
-MODEL_NAME=claude-3-5-sonnet-20241022
+### Coder
 
-# Mistral
-MODEL_NAME=mistral/mistral-large-latest
+Coder 使用 `BackgroundAgent + AgentLoop`。它接收 Issue、Repository 信息、定制指令、已召回 Memory，以及上一轮测试/审查反馈；可使用文件 CRUD、Git、Shell、测试、Lint 和 Completion Tools 完成任务。
+
+当前 Tool 集覆盖：
+
+- 读取、列出、搜索、替换、创建和删除文件；
+- 查看、创建和切换分支，执行 add、commit、push、pull；
+- 运行代码、Shell 命令、pytest 或其他已支持测试命令；
+- 通过 `finish_task` 返回 summary、branch name 和变更文件。
+
+### Tester
+
+Tester 是确定性节点，不使用 LLM。它在 Sandbox 的 `workspace/repo` 中执行 `pytest`，并仅以进程退出码判断是否通过。失败输出进入 Graph State，供 Supervisor 和下一轮 Coder 使用。
+
+### Reviewer
+
+Reviewer 先确定性获取 `base_branch...HEAD` 的完整 Git Diff，再启动 `ReviewAgent + AgentLoop`。Reviewer 拥有只读文件/Git 能力以及测试、Lint、命令和 Diff Tools，最终通过 `finish_review` 返回 `APPROVE`、`REQUEST_CHANGES` 或 `COMMENT`。
+
+### Human Approval
+
+当自动测试与 Reviewer 均通过后，`human_approval_node` 调用 LangGraph `interrupt()`。此时业务状态写为 `WAITING_FOR_APPROVAL`。用户可以通过 API 提交批准或拒绝：
+
+- **Approve**：使用原 `AgentRun` ID 恢复 Checkpoint，随后创建 PR。
+- **Reject**：恢复 Graph 并将任务标记为 `CANCELED`，不会创建 PR。
+
+## Agent Runtime
+
+`BaseAgent` 和 `AgentLoop` 构成单个 LLM Agent 的通用 Runtime：
+
+```mermaid
+flowchart LR
+    A[AgentLoop] --> B[LLM]
+    B --> C{Tool Calls?}
+    C -->|是| D[ToolManager]
+    D --> E[BaseTool.execute]
+    E --> F[ToolResult / Observation]
+    F --> B
+    C -->|Completion Tool| G[Structured Result]
 ```
 
-无需修改代码。LiteLLM 会处理不同 Provider 之间的差异。
+- `BaseAgent` 维护 system/user/tool 消息、执行状态、迭代次数和用量。
+- `ToolManager` 将 Tool 转换为 OpenAI-compatible function schema，并按名称分发调用；同一轮多个 Tool Call 可并发执行。
+- `BaseTool` 统一 Tool 定义和 `ToolResult` 结构。
+- Completion Tools 不执行外部副作用，而是以 `metadata.type=completion` 通知 AgentLoop 正常结束。
+- Runtime 默认设置迭代、Token 和 Tool Call 上限，避免无界执行。
+- LLM 接入由 LiteLLM 封装，当前默认模型配置为 `deepseek/deepseek-v4-flash`；实际 Provider 由 `MODEL_NAME` 和对应凭据决定。
 
-## Repository 结构
+## Sandbox Execution
 
+真实 Coding Workflow 使用 Daytona Sandbox：
+
+- 为每次 Agent Run 创建隔离 Runtime；
+- 将授权 Repository clone 到固定的 `workspace/repo`；
+- 在 Sandbox 内执行文件、Shell、pytest 和 Git 操作；
+- 允许 Coder 创建分支、Commit 并 Push；
+- 任务结束后由 `SandboxManager` 释放资源。
+
+`MockSandbox` 用于单元测试与 Evaluation。它在本机临时目录创建最小 Git Repository，提供与 Daytona 相近的文件、进程和 Git 接口，并包含 `login_500`、`empty_average` 两套 fixture。MockSandbox 不是安全隔离边界，不应替代真实 Daytona 用于不可信代码。
+
+## HITL & Persistence
+
+NexusCoder 使用两类持久化，职责不同：
+
+1. **业务状态**：SQLAlchemy `AgentRun` 保存 `PENDING`、`RUNNING`、`WAITING_FOR_APPROVAL`、`COMPLETED`、`FAILED`、`CANCELED` 状态，以及消息轨迹、Token、Tool Call、Branch 和 PR 信息。
+2. **Graph 状态**：LangGraph `AsyncPostgresSaver` 使用 `thread_id` 保存执行位置和 State。
+
+启动 Workflow 时，`thread_id` 使用 `AgentRun.id`。人工决策到达后，恢复任务使用完全相同的 `thread_id` 和 `Command(resume=approved)`，因此可以从 `interrupt()` 的位置继续，而不是重新运行 Coder、Tester 和 Reviewer。PR 创建被放在人工批准之后，避免未经确认就产生最终 GitHub 外部副作用。
+
+## Long-Term Memory
+
+长期记忆用于跨任务复用同一 Repository 的经验，而不是保存完整聊天记录：
+
+- **SEMANTIC**：相对稳定的仓库知识，例如测试命令或模块约定；相同 `repository + memory_key` 会更新已有知识。
+- **EPISODIC**：某次成功任务形成的可复用经验；不同 AgentRun 可保留独立历史，并设置默认过期时间。
+- 成功任务提炼服务可由 LLM 生成 0～3 条候选 Memory；写入策略要求任务成功、测试通过、Reviewer 未拒绝且没有被人工拒绝。
+- Memory 使用 Embedding 存入 pgvector；召回时先限定 Repository，再按余弦距离与 importance 排序，并过滤失效或过期记录。
+- 当前 Coding Workflow 使用 Issue 标题和正文作为查询，最多召回 5 条 Memory 注入 Coder 上下文。
+
+当前主链路已经接入任务开始前的 Memory Recall。需要注意的是，主流程目前强制进入 HITL，而人工批准后的 resume 分支尚未调用 `remember_successful_run`；因此不能声称每个获批任务都会自动提炼并写回长期记忆。写入服务、策略与测试已经存在，但 HITL 成功路径的自动接线仍待补齐。
+
+这里的 Memory 与通用 RAG 有交集，但目标不同：RAG 通常从外部文档或完整知识库检索事实；当前实现只检索由历史成功 AgentRun 提炼出的 Repository 级经验。项目尚未实现面向整个代码库或任意文档集合的通用向量化 RAG。
+
+## Evaluation
+
+### Mock Evaluation
+
+Mock Evaluation 使用 `MockLLM + MockSandbox`，以确定性场景验证 Graph 路由和指标聚合。目前 Dataset 包含：正常成功、Reviewer 首轮拒绝、Tester 首轮失败、Tester 持续失败并达到最大重试次数。
+
+```powershell
+cd backend
+python scripts/run_evaluation.py
 ```
-metis/
-├── backend/                    # FastAPI backend (Python)
+
+### Real LLM Evaluation v1
+
+Real LLM Evaluation 使用真实 LiteLLM Client，但仍使用本地 `MockSandbox` fixture，因此它验证的是 Coder/Reviewer 的真实模型行为和完整 Multi-Agent 逻辑，不等同于真实 Daytona/GitHub E2E。
+
+当前 v1 只有两个 representative cases：
+
+- `real_login_500_fix`
+- `real_empty_average_fix`
+
+已有运行记录如下：
+
+| 指标 | 结果 |
+| --- | ---: |
+| Benchmark cases passed | 2 / 2 |
+| Workflow Success | 100% |
+| Final Test Pass | 100% |
+| Reviewer Approval | 100% |
+| Retry Cases | 0 |
+| Total Tokens | 166,953 |
+| Cache Hit Rate | 93.73% |
+
+这些数据只代表当前 Real LLM Evaluation v1 的两个案例，不构成大规模 Benchmark，也不能据此推断复杂真实项目上的整体成功率。
+
+运行真实模型评测前，需要设置 `MOCK_LLM=false`、正确的 `MODEL_NAME` 和对应 Provider API Key；运行会产生真实模型调用和费用：
+
+```powershell
+cd backend
+python scripts/run_real_evaluation.py
+```
+
+Evaluation Runner 会分别统计 Workflow success、最终测试结果、Reviewer verdict、重试次数、Coder/Reviewer Token、Prompt/Completion Token，以及模型返回的 Cache hit/miss Token。
+
+## Observability
+
+- LangSmith 可通过 `LANGSMITH_TRACING` 启用，并覆盖 Multi-Agent Workflow、HITL resume、Memory recall 和 Memory extraction。
+- Trace 配置会隐藏 Issue Body、系统 Prompt、对话消息等敏感正文，只保留必要结构和元数据。
+- `AgentRun` 保存最近执行轨迹、迭代次数、Token 总量和 Tool Call 数量，供 API 与前端查看。
+- Graph State 分别累计 Coder 和 Reviewer 的 run count、prompt/completion Token、cache hit/miss Token。
+- Celery 记录任务开始、结束、重试和失败事件。
+
+当前可观测性以执行诊断和评测统计为主，不包含完整的生产监控、告警或分布式指标平台。
+
+## GitHub Integration
+
+当前 GitHub 集成包括：
+
+- GitHub OAuth 登录；
+- GitHub App JWT 和短期 Installation Token；
+- Installation 与授权 Repository 同步；
+- 按当前用户和 Installation 校验 Repository 权限；
+- 查询 Issue、Issue 评论和 Repository 默认分支；
+- 在 Sandbox 中创建 Branch、Commit、Push；
+- 人工批准后通过 GitHub API 创建 Pull Request；
+- 既有 PR Review/Summary 任务及行级、文件级 Review 评论能力。
+
+主 Coding 链路为：
+
+```text
+Issue → AgentRun → Celery → Sandbox → Branch → Code/Test/Review
+      → WAITING_FOR_APPROVAL → Approve → Checkpoint Resume → Pull Request
+```
+
+## Real GitHub E2E
+
+项目已经完成过一次真实的 Issue → PR 全链路验证。该次验证使用真实 GitHub 流程和 Daytona Sandbox，完成了：
+
+- 从 GitHub Issue 启动后台任务；
+- clone Repository 并召回 Repository-scoped Memory；
+- Coder 定位并修复 Python 空列表导致的 `ZeroDivisionError`；
+- 创建 Branch、修改文件、执行 pytest、Commit 并 Push；
+- Tester 独立执行测试并通过；
+- Reviewer 返回 `APPROVE`；
+- Workflow 进入 `WAITING_FOR_APPROVAL`；
+- 人工批准后通过 PostgreSQL Checkpoint 恢复；
+- 最终创建 GitHub Pull Request。
+
+这里不公开测试 Repository、用户、Installation、AgentRun ID 或其他私人测试数据。该记录证明这条链路曾经端到端跑通，但不代表当前任意提交、任意 Repository 或任意任务都必然成功。
+
+## Project Structure
+
+```text
+.
+├── backend/
 │   ├── app/
-│   │   ├── api/                # API route handlers
-│   │   ├── core/               # Configuration & infrastructure
-│   │   ├── db/                 # Database layer
-│   │   ├── models/             # SQLAlchemy ORM models
-│   │   ├── repositories/       # Repository pattern (data access)
-│   │   ├── services/           # Business logic
-│   │   ├── agents/             # AI Agent System
-│   │   │   ├── base.py         # BaseAgent
-│   │   │   ├── loop.py         # AgentLoop orchestrator
-│   │   │   ├── implementation/ # ReviewAgent, BackgroundAgent, SummaryAgent
-│   │   │   ├── prompts/        # System prompts
-│   │   │   ├── sandbox/        # Daytona integration
-│   │   │   └── tools/          # 23 tools
-│   │   ├── schemas/            # Pydantic models
-│   │   ├── tasks/              # Celery background tasks
-│   │   └── utils/              # Utilities
-│   ├── alembic/                # Database migrations
-│   ├── tests/                  # Test suite
-│   └── README.md               # Backend documentation
-│
-├── frontend/                   # React frontend (TypeScript)
-│   ├── src/
-│   │   ├── components/         # React components
-│   │   │   ├── ui/             # shadcn/ui components
-│   │   │   ├── dashboard/      # Dashboard components
-│   │   │   ├── landing/        # Landing page sections
-│   │   │   └── issues/         # Issue & agent components
-│   │   ├── contexts/           # React Context providers
-│   │   ├── pages/              # Route pages
-│   │   ├── lib/                # Utilities (API client, icons)
-│   │   └── types/              # TypeScript definitions
-│   └── README.md               # Frontend documentation
-│
-├── static/                     # Static assets
-│   └── metis-logo.svg
-│
-├── docker-compose.dev.yml      # Development infrastructure
-├── CONTRIBUTING.md             # Contribution guidelines
-├── CODE_OF_CONDUCT.md          # Code of conduct
-├── SECURITY.md                 # Security policy
-└── README.md                   # This file
+│   │   ├── agents/
+│   │   │   ├── multi_agent/   # StateGraph、Supervisor、各 Agent Node、HITL
+│   │   │   ├── tools/         # File、Git、Process、Diff、Completion Tools
+│   │   │   ├── sandbox/       # Daytona adapter、生命周期管理、MockSandbox
+│   │   │   └── memory/        # 提炼、策略、Embedding、召回与存储
+│   │   ├── api/               # FastAPI routers
+│   │   ├── tasks/             # Celery 后台任务与 HITL resume
+│   │   ├── models/            # SQLAlchemy 业务模型
+│   │   ├── evaluation/        # Dataset、Runner 与指标聚合
+│   │   └── core/              # 配置、LLM Client、Celery、LangSmith
+│   ├── alembic/               # 数据库迁移
+│   ├── scripts/               # Checkpoint 初始化、Evaluation、Smoke scripts
+│   └── tests/
+├── frontend/                  # React 19、TypeScript、Vite 前端
+├── docker-compose.dev.yml     # 本地开发服务编排
+└── LICENSE
 ```
 
-## 快速开始
+仓库根目录当前没有独立的 `scripts/`；运行脚本位于 `backend/scripts/`。
 
-### 前置条件
+## Quick Start
 
-- **Python 3.10+**
-- **Node.js 20+**，并安装 pnpm
-- **Docker 和 Docker Compose**
-- **GitHub App** 凭据
-- **Daytona 账户** (https://app.daytona.io)
-- **UV** 包管理器
+### 1. 前置条件
 
-### 1. 启动基础设施
+- Python 3.10 或更高版本；
+- PostgreSQL 16；Memory 功能需要安装 pgvector 扩展；
+- Redis 7；
+- `uv`；
+- 运行真实链路时需要 GitHub App/OAuth、Daytona 和所选 LLM Provider 的凭据。
 
-```bash
-# Start PostgreSQL, Redis, pgAdmin, Redis Insight
-docker-compose -f docker-compose.dev.yml up -d
+仓库的 `docker-compose.dev.yml` 可以启动 PostgreSQL 和 Redis，但当前 PostgreSQL 镜像是标准 `postgres:16-alpine`，没有在 Compose 中安装或初始化 pgvector。若要执行包含 Memory Embedding 的全部 Migration，请使用已安装 pgvector 的 PostgreSQL 实例。不要把现有 Compose 理解为已经完整配置好 Memory 数据库。
+
+```powershell
+docker compose -f docker-compose.dev.yml up -d postgres redis
 ```
 
-**服务**：
-- PostgreSQL：`localhost:5432`
-- Redis：`localhost:6379`
-- pgAdmin：`http://localhost:5050` (admin@example.com / admin)
+### 2. 安装后端依赖
 
-### 2. 配置 Backend
-
-```bash
+```powershell
 cd backend
-
-# Install dependencies
 uv sync
+.\.venv\Scripts\Activate.ps1
+```
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your credentials
+### 3. 配置环境变量
 
-# Run migrations
+在 `backend/.env` 中配置环境变量。下面只有变量名和 placeholder，不包含真实 Secret：
+
+```dotenv
+MOCK_LLM=true
+MOCK_SANDBOX=true
+MOCK_EMBEDDING=true
+
+MODEL_NAME=deepseek/deepseek-v4-flash
+DEEPSEEK_API_KEY=<deepseek-api-key>
+OPENAI_API_KEY=<embedding-provider-api-key>
+
+DATABASE_URL=postgresql+asyncpg://<db-user>:<db-password>@localhost:5432/<db-name>
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
+
+JWT_SECRET_KEY=<random-jwt-secret>
+ENCRYPTION_KEY=<fernet-compatible-key>
+FRONTEND_URL=http://localhost:5173
+
+GITHUB_APP_ID=<github-app-id>
+GITHUB_APP_NAME=<github-app-name>
+GITHUB_CLIENT_ID=<github-oauth-client-id>
+GITHUB_CLIENT_SECRET_ID=<github-oauth-client-secret>
+GITHUB_WEBHOOK_SECRET=<github-webhook-secret>
+GITHUB_SECRET_KEY_PATH=<path-to-github-app-private-key>
+
+DAYTONA_API_KEY=<daytona-api-key>
+DAYTONA_API_URL=<daytona-api-url>
+DAYTONA_TARGET=<daytona-target>
+
+LANGSMITH_TRACING=false
+LANGSMITH_API_KEY=<langsmith-api-key>
+LANGSMITH_ENDPOINT=<langsmith-endpoint>
+LANGSMITH_PROJECT=<langsmith-project>
+```
+
+本地 Mock 开发可以保持 `MOCK_LLM=true`、`MOCK_SANDBOX=true` 和 `MOCK_EMBEDDING=true`。真实 GitHub/Daytona Workflow 需要将相关 Mock 开关设为 `false` 并提供对应凭据。
+
+### 4. 初始化数据库与 LangGraph Checkpoint
+
+确认目标 PostgreSQL 已支持 pgvector 后执行：
+
+```powershell
 alembic upgrade head
-
-# Start backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python scripts/init_langgraph_checkpoint.py
 ```
 
-### 3）运行 Worker
-```bash
-# Start Celery worker
-cd backend
-celery -A app.core.celery_app worker --loglevel=info
+Alembic 管理 NexusCoder 的业务表；`init_langgraph_checkpoint.py` 调用 LangGraph Checkpointer 自己的 `setup()` 创建 Checkpoint 表。
+
+### 5. 启动 FastAPI
+
+```powershell
+python -m uvicorn app.main:app --reload
 ```
 
-**可选——Celery 监控**：
+- API：`http://localhost:8000`
+- Swagger UI：`http://localhost:8000/api/docs`
+- Health Check：`http://localhost:8000/health`
 
-```bash
-# Start Flower
-celery -A app.core.celery_app flower --port=5555
-# Visit http://localhost:5555
+### 6. 启动 Celery Worker（Windows）
+
+在另一个已激活后端虚拟环境的 PowerShell 中运行：
+
+```powershell
+celery -A app.core.celery_app.celery_app worker --loglevel=info --pool=solo
 ```
 
-Backend 地址：`http://localhost:8000`
+Windows 使用 `--pool=solo`，避免默认多进程模型带来的兼容性问题。
 
-### 4. 配置 Frontend
+### 7. 可选：启动前端
 
-```bash
+```powershell
 cd frontend
-
-# Install dependencies
-pnpm install
-
-# Start dev server
-pnpm dev
+corepack pnpm install
+corepack pnpm dev
 ```
 
-Frontend 地址：`http://localhost:5173`
+前端默认开发地址为 `http://localhost:5173`。
 
-### 5. 配置 GitHub App
+## Design Decisions
 
-**快速概要**：
-1. 创建具有所需权限的 GitHub App
-2. 生成并下载私钥（`.pem` 文件）
-3. 将 webhook URL 设置为 `http://your-domain/webhooks/github`
-4. 将凭据添加到 Backend 的 `.env`
+- **FastAPI + Celery**：API 负责认证、校验和任务投递；Celery 负责耗时、可重试的 Agent 执行，避免阻塞 HTTP 请求。
+- **LangGraph 管 Outer Workflow**：多节点路由、失败反馈、重试与 interrupt/resume 是状态机问题，使用显式 Graph 比把流程隐藏在 Prompt 中更可测试。
+- **AgentLoop 管 Inner Loop**：单个 Agent 的模型调用与 Tool 循环可复用，Coder 和 Reviewer 不需要各自实现一套执行引擎。
+- **Tester 使用确定性 pytest**：测试是否通过由进程退出码决定，不交给 LLM 猜测。
+- **Reviewer 使用 LLM**：审查需要结合 Diff、语义和工程上下文，但最终仍输出受约束的结构化 verdict。
+- **隔离 Sandbox**：Agent 可以运行命令和修改文件，这类高权限操作不应直接发生在 API/Worker 宿主文件系统中。
+- **PR 前置 HITL**：Branch 可以先用于保存 Agent 产物，但创建最终 PR 前仍需人工确认，降低错误外部副作用。
+- **PostgreSQL Checkpoint**：审批可能跨进程、跨时间发生，持久化 Checkpoint 比依赖 Worker 内存更可靠。
+- **Memory 不等于通用 RAG**：Memory 保存经过成功任务提炼的 Repository 经验；当前没有构建通用文档或整库代码检索平台。
 
-### 6. 访问应用
+## Current Status
 
-1. **访问 Frontend**：`http://localhost:5173`
-2. **点击 “Login with GitHub”**——重定向到 GitHub OAuth
-3. **授权应用**——重定向回 Dashboard
-4. **同步 Repository**——在 Repositories 页面点击 “Sync from GitHub”
-5. **启用 Review**——打开希望 Metis Review 的 Repository 开关
-6. 在已启用的 Repository 中**创建 PR**——Metis 会自动进行 Review！
+### Implemented
 
-## 文档
+- FastAPI、Celery、Redis 后台任务链路；
+- LangGraph Multi-Agent StateGraph、Supervisor 路由和最多 3 次重试；
+- Coder、确定性 Tester、LLM Reviewer、HITL interrupt/resume；
+- Daytona Sandbox adapter、Repository clone、文件/Git/命令 Tools；
+- PostgreSQL Checkpointer 和 `AgentRun` 持久化；
+- Repository-scoped Semantic/Episodic Memory 与 pgvector 检索；
+- Mock/Real LLM Evaluation Runner 与 Token/Cache 指标；
+- LangSmith Trace 和敏感字段脱敏；
+- GitHub OAuth、App Installation、Issue 查询、Branch Push 和 PR 创建。
 
-### 核心文档
+### Validated
 
-- **[Backend README](backend/README.md)**——完整的 Backend 架构、API 参考和 Agent System 说明
-- **[Frontend README](frontend/README.md)**——React App 结构、组件和状态管理
+- 曾完成一次真实 GitHub Issue → Daytona → Multi-Agent → HITL → PostgreSQL resume → Pull Request E2E。
+- Real LLM Evaluation v1 的两个 representative cases 已记录为 2/2 通过；这不是大规模 Benchmark。
+- 重新运行了 18 个不需要真实 Secret 的核心测试，结果为 `18 passed, 0 failed, 19 warnings`；Multi-Agent、HITL、Evaluation Runner、Supervisor、Evaluation metrics 和 Memory extractor 等核心测试均已通过。
+- 19 个 warning 主要来自 `pytest-asyncio` 弃用提示与 pytest cache 写入提示，不属于测试失败。
 
-## 开发
+### Known Limitations
 
-### 开发工作流
+此外，Memory Recall 已进入当前 HITL 主链路，但获批后的 resume 分支尚未自动调用长期记忆提炼/写入服务；目前应将 Memory 描述为“读取链路已接入、写回组件已实现但主路径接线未完成”。
 
-**Backend**：
-```bash
-cd backend
+### Future Improvements
 
-# Code quality
-ruff check .              # Lint
-ruff format .             # Format
-mypy app/                 # Type check
-pytest                    # Run tests
+- 在 HITL approve/resume 成功路径接入 `remember_successful_run`；
+- 为本地 PostgreSQL 开发环境补齐明确、可重复的 pgvector 初始化方案；
+- 扩充 Real LLM Evaluation 数据集并保存可审计的版本化运行报告；
+- 增加更多语言、测试框架、复杂 Repository 和失败恢复案例；
+- 完善生产部署、监控告警、权限隔离和 Sandbox 资源治理；
+- 持续减少 Trace 和持久化数据中的敏感信息暴露面。
 
-# Database
-alembic revision --autogenerate -m "description"
-alembic upgrade head
+## License / Acknowledgements
 
-# Pre-commit hooks
-pre-commit install
-pre-commit run --all-files
-```
+本项目使用 [MIT License](LICENSE)。现有许可证保留了原作者 `Kacem Mathlouthi` 的版权声明。
 
-**Frontend**：
-```bash
-cd frontend
-
-# Code quality
-pnpm lint                 # ESLint
-pnpm format               # Prettier
-pnpm build                # Type check + build
-
-# Development
-pnpm dev                  # Dev server with HMR
-```
-
-### 开发技术栈
-
-**Backend**：
-- FastAPI：异步 API Endpoint
-- Celery：后台任务处理
-- SQLAlchemy 2.0：异步 ORM
-- Alembic：数据库迁移
-- Redis：任务队列和缓存
-- LiteLLM：访问多个 LLM Provider
-- Daytona：隔离代码执行
-
-**Frontend**：
-- React 19 和 React Compiler
-- TypeScript：类型安全
-- Vite（Rolldown）：快速构建
-- Tailwind CSS v4：样式
-- shadcn/ui：组件库
-- React Router v7：路由
-
-### 持续集成
-
-**GitHub Actions Workflow**：
-- Backend：Ruff、MyPy、Pytest（Push 时运行）
-- Frontend：ESLint、TypeScript、Build（Push 时运行）
-- CodeQL：安全扫描
-
-### 环境变量
-
-**Backend**（`.env`）：
-```bash
-# Database
-DATABASE_URL=postgresql+asyncpg://...
-
-# GitHub
-GITHUB_APP_ID=...
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-GITHUB_WEBHOOK_SECRET=...
-GITHUB_SECRET_KEY_PATH=./app.private-key.pem
-
-# LLM Provider
-MODEL_NAME=vertex_ai/gemini-3-flash-preview
-VERTEX_PROJECT=...
-VERTEX_LOCATION=global
-
-# Daytona
-DAYTONA_API_KEY=...
-DAYTONA_TARGET=eu
-```
-
-**Frontend**（`.env.production`）：
-```bash
-VITE_API_URL=https://api.metis.example.com
-```
-
-
-## 安全
-- 强制校验 GitHub Event 的 Webhook 签名。
-- OAuth Token 加密存储。
-- Session Auth 使用 HTTP-only Cookie 和刷新流程。
-
-如果你发现安全漏洞，请提交私密安全报告，或在 `SECURITY.md` 完善前直接联系维护者。
-
-## 参与贡献
-
-欢迎贡献！请先阅读我们的贡献指南。
-
-### 如何贡献
-
-1. **Fork Repository**
-2. **创建 Feature Branch**：`git checkout -b feature/amazing-feature`
-3. 按照我们的代码标准**进行修改**
-4. **运行质量检查**：
-   - Backend：`ruff check . && mypy app/ && pytest`
-   - Frontend：`pnpm lint && pnpm format:check && pnpm build`
-5. **提交修改**：`git commit -m 'feat: add amazing feature'`
-6. **Push 到 Branch**：`git push origin feature/amazing-feature`
-7. **创建 Pull Request**
-
-
-<p align="center">
-  <img src="frontend/src/assets/lechat.gif" alt="LeChat" width="360" />
-</p>
-
-## 许可证
-
-本项目采用 MIT License——详情请参阅 [LICENSE](LICENSE) 文件。
-
-## Star 历史
-
-如果你觉得 Metis 有用，请考虑为 Repository 点 Star！
-
-<a href="https://star-history.com/#KacemMathlouthi/metis&Date">
-  <picture>
-	    <source
-	      media="(prefers-color-scheme: dark)"
-	      srcset="https://api.star-history.com/svg?repos=KacemMathlouthi/metis&type=Date&theme=dark&legend=bottom-right&cache=2026-02-15"
-	    />
-	    <source
-	      media="(prefers-color-scheme: light)"
-	      srcset="https://api.star-history.com/svg?repos=KacemMathlouthi/metis&type=Date&legend=bottom-right&cache=2026-02-15"
-	    />
-    <img
-      alt="Star History Chart"
-      src="https://api.star-history.com/svg?repos=KacemMathlouthi/metis&type=Date&legend=bottom-right&cache=2026-02-15"
-    />
-  </picture>
-</a>
-
----
-
-<p align="center">用 ❤️ 打造，只为更好的 Code Review</p>
+NexusCoder 基于并改造自 [KacemMathlouthi/metis](https://github.com/KacemMathlouthi/metis)。当前的 Multi-Agent、LangGraph、HITL、长期记忆和 Evaluation 等实现是在该上游项目基础上的后续工程演进；这里保留来源说明与许可证 attribution，不将项目描述为完全从零原创。

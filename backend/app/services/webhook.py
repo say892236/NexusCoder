@@ -73,7 +73,7 @@ async def handle_pull_request(
     installation_record = installation_query.scalar_one_or_none()
 
     if not installation_record:
-        # 找不到 Installation 表示用户尚未把该 Repository 接入 Metis。
+        # 找不到 Installation 表示用户尚未把该 Repository 接入 NexusCoder。
         return {
             "status": "ignored",
             "reason": f"Installation {github_installation_id} not found. Repository not enrolled.",

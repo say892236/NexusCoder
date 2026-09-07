@@ -35,12 +35,8 @@ from app.agents.tools.process_tools import (
     RunLinterTool,
     RunTestsTool,
 )
-from app.agents.tools.review_posting_tools import (
-    PostFileReviewFindingTool,
-    PostInlineReviewFindingTool,
-)
+from app.agents.tools.reviewer_tools import GitDiffTool
 from app.db.base import AsyncSessionLocal
-from app.services.github import GitHubService
 
 
 class ToolManager:
@@ -163,6 +159,13 @@ def get_reviewer_tools(
     Returns:
         注册了 Review 专用 Tool 的 ToolManager
     """
+    from app.agents.tools.review_posting_tools import (
+        PostFileReviewFindingTool,
+        PostInlineReviewFindingTool,
+    )
+    from app.services.github import GitHubService
+
+
     manager = ToolManager(sandbox)
     manager.register_tools(
         [
@@ -258,6 +261,59 @@ def get_coder_tools(sandbox) -> ToolManager:
     )
     return manager
 
+def get_multi_agent_reviewer_tools(
+    sandbox,
+    base_branch: str = "main",
+) -> ToolManager:
+    """组装 Multi-Agent Reviewer 的只读分析与验证 Tool 集。"""
+
+    manager = ToolManager(sandbox)
+
+    # Reviewer 用于读取代码、搜索上下文。
+    manager.register_tools(
+        [
+            ListFilesTool,
+            ReadFileTool,
+            SearchFilesTool,
+        ]
+    )
+
+    # Reviewer 只读取 Git 状态，不做提交等写操作。
+    manager.register_tools(
+        [
+            GitStatusTool,
+            GitBranchesTool,
+        ]
+    )
+
+    # Reviewer 可运行命令、测试和 Linter 做验证。
+    manager.register_tools(
+        [
+            RunCommandTool,
+            RunTestsTool,
+            RunLinterTool,
+        ]
+    )
+
+    # GitDiffTool 需要绑定当前 Repository 的基础分支，
+    # 所以单独创建实例。
+    manager.register_tool_instances(
+        [
+            GitDiffTool(
+                sandbox=sandbox,
+                base_branch=base_branch,
+            ),
+        ]
+    )
+
+    # Reviewer 最终必须显式结束评审。
+    manager.register_tools(
+        [
+            FinishReviewTool,
+        ]
+    )
+
+    return manager
 
 def get_summary_tools(sandbox) -> ToolManager:
     """组装 Summary Agent 的最小 Tool 集。

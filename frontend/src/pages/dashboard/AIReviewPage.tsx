@@ -120,11 +120,11 @@ export const AIReviewPage: React.FC = () => {
       <div className="flex flex-col gap-2">
         <h1 className="landing-display text-3xl font-black">Review Configuration</h1>
         <p className="font-medium text-black/60">
-          Customize Metis's code review behavior and preferences.
+          Customize NexusCoder's code review behavior and preferences.
         </p>
       </div>
 
-      {/* Metis Agent Capabilities section hidden for now */}
+      {/* NexusCoder Agent Capabilities section hidden for now */}
 
       {/* Sensitivity */}
       <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -195,7 +195,7 @@ export const AIReviewPage: React.FC = () => {
             <CardTitle className="font-black">Tailored Instructions</CardTitle>
           </div>
           <CardDescription className="font-medium">
-            Provide specific guidelines for Metis to follow. Repository context files (e.g.,
+            Provide specific guidelines for NexusCoder to follow. Repository context files (e.g.,
             AGENTS.md) are automatically detected.
           </CardDescription>
         </CardHeader>
@@ -203,7 +203,7 @@ export const AIReviewPage: React.FC = () => {
           <Textarea
             value={customInstructions}
             onChange={(e) => setCustomInstructions(e.target.value)}
-            placeholder="Enter specific coding standards, architectural patterns, or focus areas for Metis..."
+            placeholder="Enter specific coding standards, architectural patterns, or focus areas for NexusCoder..."
             className="min-h-[120px] resize-none border-2 border-black font-medium placeholder:text-gray-400 focus-visible:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus-visible:ring-0"
           />
         </CardContent>
@@ -219,7 +219,7 @@ export const AIReviewPage: React.FC = () => {
                 <CardTitle className="font-black">Continuous Review</CardTitle>
               </div>
               <CardDescription className="font-medium">
-                Analyze new commits pushed to existing PRs. If disabled, Metis only reviews the
+                Analyze new commits pushed to existing PRs. If disabled, NexusCoder only reviews the
                 initial pull request.
               </CardDescription>
             </div>
@@ -228,7 +228,7 @@ export const AIReviewPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-gray-600 font-medium rounded border-2 border-gray-200 bg-gray-50 p-3 text-sm">
-            Metis will only comment on new issues introduced in subsequent commits to minimize
+            NexusCoder will only comment on new issues introduced in subsequent commits to minimize
             noise.
           </p>
         </CardContent>
@@ -242,7 +242,7 @@ export const AIReviewPage: React.FC = () => {
             <CardTitle className="font-black">Exclusion Rules</CardTitle>
           </div>
           <CardDescription className="font-medium">
-            Specify file patterns that Metis should skip during reviews.
+            Specify file patterns that NexusCoder should skip during reviews.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -86,7 +86,7 @@ class Review(Base, BaseModel):
 class ReviewComment(Base, BaseModel):
     """定位到具体代码行的一条 inline comment。
 
-    表示 Metis AI Agent 发现的一个代码问题，包含严重级别、类别，以及发布后的可选
+    表示 NexusCoder Agent 发现的一个代码问题，包含严重级别、类别，以及发布后的可选
     GitHub comment ID；通过 ``line_end`` 同时支持单行和多行评论。
     """
 

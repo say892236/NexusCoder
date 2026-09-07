@@ -117,15 +117,36 @@ class FinishTaskTool(BaseTool):
         Returns:
             包含任务数据与完成信号的 ToolResult
         """
+        result = self.sandbox.process.exec(
+            command=(
+                "git diff "
+                "main...HEAD "
+                "--name-only"
+            ),
+            cwd="workspace/repo",
+            timeout=30,
+        )
+
+        files_changed = []
+
+        if result.exit_code == 0:
+            files_changed = [
+                line.strip()
+                for line in result.result.splitlines()
+                if line.strip()
+            ]
+
         return ToolResult(
             success=True,
             data={
                 "summary": summary,
                 "branch_name": branch_name,
-                "files_changed": files_changed or [],
+                "files_changed": files_changed,
                 "completed": True,
             },
-            metadata={"type": "completion"},
+            metadata={
+                "type": "completion"
+            },
         )
 
 

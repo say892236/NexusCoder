@@ -1,5 +1,7 @@
 """通过 Daytona SDK 在 Sandbox Runtime 中执行进程与命令的 Tool。"""
 
+import shlex
+
 from app.agents.tools.base import BaseTool, ToolDefinition, ToolResult
 
 
@@ -30,21 +32,37 @@ class RunCommandTool(BaseTool):
                 "required": ["command"],
             },
         )
-
     async def execute(
-        self, command: str, cwd: str = "workspace/repo", timeout: int = 30, **kwargs
+        self,
+        command: str,
+        cwd: str | None = "workspace/repo",
+        timeout: int = 30,
+        **kwargs,
     ) -> ToolResult:
         """通过 ``Daytona process.exec()`` 执行命令。"""
         try:
-            response = self.sandbox.process.exec(command=command, cwd=cwd, timeout=timeout)
+            response = self.sandbox.process.exec(
+                command=command,
+                cwd=cwd,
+                timeout=timeout,
+            )
 
             return ToolResult(
                 success=response.exit_code == 0,
-                data={"stdout": response.result, "exit_code": response.exit_code},
-                metadata={"command": command},
+                data={
+                    "stdout": response.result,
+                    "exit_code": response.exit_code,
+                },
+                metadata={
+                    "command": command,
+                    "cwd": cwd,
+                },
             )
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(
+                success=False,
+                error=str(e),
+            )
 
 
 class RunCodeTool(BaseTool):
@@ -68,18 +86,40 @@ class RunCodeTool(BaseTool):
             },
         )
 
-    async def execute(self, code: str, timeout: int = 30, **kwargs) -> ToolResult:
-        """通过 ``Daytona process.code_run()`` 执行代码片段。"""
+    async def execute(
+        self,
+        code: str,
+        timeout: int = 30,
+        **kwargs
+    ) -> ToolResult:
+
         try:
-            response = self.sandbox.process.code_run(code)
+
+
+
+            command = f"python -c {shlex.quote(code)}"
+
+            response = self.sandbox.process.exec(
+                command=command,
+                timeout=timeout,
+            )
 
             return ToolResult(
                 success=response.exit_code == 0,
-                data={"result": response.result, "exit_code": response.exit_code},
-                metadata={"code_length": len(code)},
+                data={
+                    "result": response.result,
+                    "exit_code": response.exit_code,
+                },
+                metadata={
+                    "code_length": len(code)
+                },
             )
+
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(
+                success=False,
+                error=str(e)
+            )
 
 
 class RunTestsTool(BaseTool):
@@ -127,8 +167,8 @@ class RunTestsTool(BaseTool):
             response = self.sandbox.process.exec(
                 command=command,
                 cwd="workspace/repo",
-                timeout=120,  # 测试通常比普通命令耗时更长。
-            )
+                timeout=120,
+)
 
             return ToolResult(
                 success=response.exit_code == 0,
@@ -184,7 +224,7 @@ class RunLinterTool(BaseTool):
             else:
                 command = f"{linter} {path}"
 
-            response = self.sandbox.process.exec(command=command, cwd="workspace/repo", timeout=60)
+            response = self.sandbox.process.exec(command=command, cwd=None, timeout=60)
 
             return ToolResult(
                 success=response.exit_code == 0,

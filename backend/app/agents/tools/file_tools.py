@@ -53,7 +53,9 @@ class ListFilesTool(BaseTool):
     def definition(self) -> ToolDefinition:
         return ToolDefinition(
             name="list_files",
-            description="List files and directories in a path",
+            description=(
+                "List direct files and directories in a path. The result is non-recursive."
+            ),
             parameters={
                 "type": "object",
                 "properties": {
@@ -66,8 +68,13 @@ class ListFilesTool(BaseTool):
             },
         )
 
-    async def execute(self, directory: str = "workspace/repo", **kwargs) -> ToolResult:
-        """通过 ``Daytona fs.list_files()`` 执行目录遍历。"""
+    async def execute(
+        self,
+        directory: str = "workspace/repo",
+        **kwargs,
+    ) -> ToolResult:
+        """列出目录直接子项，并过滤 Agent 不需要读取的内部目录。"""
+
         try:
             # 相对路径统一从 Repository 根目录开始。
             if not directory.startswith("/") and not directory.startswith("workspace/"):
@@ -75,24 +82,52 @@ class ListFilesTool(BaseTool):
 
             files = self.sandbox.fs.list_files(directory)
 
-            # 精简 SDK 对象，只返回 Agent 判断下一步所需的字段。
+            # 这些目录通常体积大、噪声高，
+            # Coding Agent 不需要通过 list_files 浏览。
+            ignored_names = {
+                ".git",
+                ".venv",
+                "venv",
+                "__pycache__",
+                ".pytest_cache",
+                ".mypy_cache",
+                ".ruff_cache",
+                "node_modules",
+                "dist",
+                "build",
+                "htmlcov",
+            }
+
+            # 只保留 Agent 真正需要看到的源码/项目文件。
+            visible_files = [file for file in files if file.name not in ignored_names]
+
+            # 精简 SDK 对象，只返回 Agent 判断下一步所需字段。
             file_list = [
                 {
-                    "name": f.name,
-                    "is_dir": f.is_dir,
-                    "size": f.size,
-                    "modified": str(f.mod_time) if hasattr(f, "mod_time") else None,
+                    "name": file.name,
+                    "is_dir": file.is_dir,
+                    "size": file.size,
+                    "modified": (str(file.mod_time) if hasattr(file, "mod_time") else None),
                 }
-                for f in files
+                for file in visible_files
             ]
 
             return ToolResult(
                 success=True,
-                data={"files": file_list, "directory": directory},
-                metadata={"count": len(file_list)},
+                data={
+                    "files": file_list,
+                    "directory": directory,
+                },
+                metadata={
+                    "count": len(file_list),
+                },
             )
+
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(
+                success=False,
+                error=str(e),
+            )
 
 
 class SearchFilesTool(BaseTool):

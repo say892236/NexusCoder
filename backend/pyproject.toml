@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Metis AI Code Reviewer Backend"
+description = "NexusCoder Backend"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -35,6 +35,12 @@ dependencies = [
     "tomli>=2.3.0",
     "urllib3>=2.6.3",
     "uvicorn>=0.38.0",
+    "langgraph>=1.2.11",
+    "myapplication>=0.1.0",
+    "llm>=0.32.1",
+    "langgraph-checkpoint-postgres>=3.1.2",
+    "psycopg[binary]>=3.3.4",
+    "pgvector>=0.5.0",
 ]
 
 [dependency-groups]
@@ -55,6 +61,7 @@ dev = [
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+extend-exclude = ["mock_workspace"]
 
 [tool.ruff.lint]
 select = [
@@ -101,6 +108,7 @@ ignore = [
     "E501",    # Formatter is source of truth; long strings/prompts are common
     "ISC001",  # String literal concatenation style; not worth blocking CI
     "PLR0913", # Too many arguments
+    "PLR0917", # Too many positional arguments (same project policy as PLR0913)
     "PLR0911", # Too many return statements (often OK in endpoint/task flows)
     "PLR0912", # Too many branches (often OK in endpoint/task flows)
     "PLR0915", # Too many statements (often OK in endpoint/task flows)
@@ -123,6 +131,9 @@ ignore = [
     "F401",    # imported but unused (used for side-effect imports)
     "F841",    # local variable assigned but never used
     "RUF100",  # unused noqa
+    "RUF001",  # Ambiguous Unicode in strings (Chinese punctuation is intentional)
+    "RUF002",  # Ambiguous Unicode in docstrings (Chinese punctuation is intentional)
+    "RUF003",  # Ambiguous Unicode in comments (Chinese punctuation is intentional)
     "TC001",   # move application imports into TYPE_CHECKING blocks
     "TC002",   # move third-party imports into TYPE_CHECKING blocks
     "TC003",   # move standard library imports into TYPE_CHECKING blocks
@@ -130,7 +141,13 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "ARG", "PLR2004"]
+"tests/*.py" = ["S101", "ARG", "PLR2004"]
 "migrations/**/*.py" = ["E501"]
+# This mock intentionally executes shell commands and preserves non-zero exit codes
+# to emulate Daytona's command API.
+"app/agents/sandbox/mock.py" = ["S602", "S607", "PLW1510"]
+# `shell` here configures Daytona's remote runtime; it is not a local subprocess call.
+"app/agents/sandbox/client.py" = ["S604"]
 
 [tool.ruff.format]
 quote-style = "double"

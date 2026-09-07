@@ -3,6 +3,7 @@
 该层负责创建远程 Runtime、设置资源与自动停止策略，并把 Repository clone 到固定工作目录；
 更高层的 SandboxManager 再按 agent_id 管理复用和销毁。
 """
+import uuid
 
 from daytona import CreateSandboxFromSnapshotParams, Daytona, DaytonaConfig
 
@@ -10,7 +11,7 @@ from app.core.config import settings
 
 
 class DaytonaClient:
-    """把 Daytona SDK 适配为 Metis Agent 所需的最小 Sandbox 接口。"""
+    """把 Daytona SDK 适配为 NexusCoder Agent 所需的最小 Sandbox 接口。"""
 
     def __init__(self, git_username: str | None = None, git_token: str | None = None):
         """使用应用配置和可选 Git 凭据初始化 Daytona 客户端。
@@ -28,6 +29,25 @@ class DaytonaClient:
         )
         self.git_username = git_username or "git"
         self.git_token = git_token
+
+    def _initialize_git(self, sandbox):
+        """
+        初始化 Sandbox 内 git 配置。
+
+        Daytona Sandbox 是临时环境，
+        默认没有 git user.name / user.email。
+        如果不初始化，commit 会失败。
+        """
+
+        sandbox.process.exec(
+            command=(
+                'git config user.name "NexusCoder" '
+                '&& '
+                'git config user.email "metis-ai@example.com"'
+            ),
+            cwd="workspace/repo",
+            timeout=30,
+        )
 
     def create_sandbox(
         self,
@@ -49,13 +69,14 @@ class DaytonaClient:
             Daytona Sandbox 实例
         """
         params = CreateSandboxFromSnapshotParams(
-            name=f"agent-{agent_id}",
+            name=f"agent-{agent_id}-{uuid.uuid4().hex[:6]}",
             language=language,
             snapshot=snapshot,
+            shell="/bin/bash",
             resources={
                 "cpu": 2,  # 2 个 vCPU
                 "memory": 4,  # 4 GB 内存
-                "disk": 2,  # 2 GB 磁盘
+                "disk": 8,  # 2 GB 磁盘
             },
             auto_stop_interval=15,  # 空闲 15 分钟后自动停止以节省资源。
             auto_delete_interval=-1,  # 不让 Daytona 自动删除，由 manager 显式释放。
@@ -67,7 +88,14 @@ class DaytonaClient:
 
         # 有 Repository 地址时，在返回前完成 clone。
         if repository_url:
-            self._clone_repository(sandbox, repository_url, branch)
+            self._clone_repository(
+                sandbox,
+                repository_url,
+                branch
+            )
+
+        # 初始化 Sandbox 内 git 用户信息
+        self._initialize_git(sandbox)
 
         return sandbox
 

@@ -18,7 +18,7 @@ export const CallbackPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = 'Metis — Login';
+    document.title = 'NexusCoder — Login';
   }, []);
 
   useEffect(() => {

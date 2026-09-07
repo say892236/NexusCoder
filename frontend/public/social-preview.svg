@@ -1,4 +1,4 @@
-<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Metis AI social preview">
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="NexusCoder social preview">
   <defs>
     <linearGradient id="bgGradient" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#FFF8F2"/>
@@ -45,10 +45,10 @@
     <rect x="-262" y="-70" width="140" height="140" fill="url(#metisGradient)" stroke="#000000" stroke-width="9" filter="url(#logoShadow)"/>
     <text x="-192" y="4" text-anchor="middle" dominant-baseline="middle" font-family="Space Grotesk, Sora, sans-serif" font-size="78" font-weight="900" fill="#FFFFFF">M</text>
 
-    <text x="-90" y="12" dominant-baseline="middle" font-family="Space Grotesk, Sora, sans-serif" font-size="102" font-weight="900" letter-spacing="-3" fill="#000000">METIS</text>
+    <text x="-90" y="12" dominant-baseline="middle" font-family="Space Grotesk, Sora, sans-serif" font-size="102" font-weight="900" letter-spacing="-3" fill="#000000">NexusCoder</text>
   </g>
 
-  <text x="600" y="350" text-anchor="middle" font-family="Source Code Pro, monospace" font-size="24" font-weight="800" fill="#000000">Metis AI automates code review, generates PR titles and summaries,</text>
+  <text x="600" y="350" text-anchor="middle" font-family="Source Code Pro, monospace" font-size="24" font-weight="800" fill="#000000">NexusCoder automates code review, generates PR titles and summaries,</text>
   <text x="600" y="384" text-anchor="middle" font-family="Source Code Pro, monospace" font-size="24" font-weight="800" fill="#000000">and enables autonomous coding in cloud sandboxes.</text>
 
   <rect x="250" y="444" width="700" height="58" fill="#FFAF00" stroke="#000000" stroke-width="4"/>

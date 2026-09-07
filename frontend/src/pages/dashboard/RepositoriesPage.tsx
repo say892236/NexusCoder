@@ -368,7 +368,7 @@ export const RepositoriesPage = () => {
                 </div>
                 <h3 className="mb-2 text-xl font-black">No GitHub Installations Found</h3>
                 <p className="mb-6 text-sm text-black/60">
-                  Install the Metis GitHub App on your repositories to get started
+                  Install the NexusCoder GitHub App on your repositories to get started
                 </p>
                 <Button
                   className="border-2 border-black bg-[var(--metis-orange)] font-bold text-white shadow-[4px_4px_0px_0px_#000]"

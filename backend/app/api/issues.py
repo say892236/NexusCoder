@@ -109,7 +109,7 @@ async def list_issues(
 ) -> list[IssueResponse]:
     """列出 Repository 的全部 Issue。
 
-    数据从 GitHub API 动态读取，且 Repository 必须已接入 Metis。
+    数据从 GitHub API 动态读取，且 Repository 必须已接入 NexusCoder。
 
     Args:
         repository: Repository 全名（owner/repo）
@@ -140,7 +140,7 @@ async def list_issues(
     if not installation:
         raise HTTPException(
             status_code=404,
-            detail=f"Repository {repository} not found or not enrolled in Metis",
+            detail=f"Repository {repository} not found or not enrolled in NexusCoder",
         )
 
     # 将 Repository 全名拆分为 GitHub API 所需的 owner/repo。

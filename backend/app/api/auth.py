@@ -99,7 +99,7 @@ async def github_callback(
 
     await db.commit()
 
-    # 生成 Metis 自己的 access/refresh JWT，而不是把 GitHub token 暴露给前端。
+    # 生成 NexusCoder 自己的 access/refresh JWT，而不是把 GitHub token 暴露给前端。
     jwt_access_token = create_access_token(data={"sub": str(user.id)})
     jwt_refresh_token = create_refresh_token(user_id=str(user.id))
 

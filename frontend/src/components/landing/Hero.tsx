@@ -37,7 +37,7 @@ export const Hero: React.FC = () => {
         <p className="mx-auto mb-10 max-w-xl border-2 border-black bg-white/95 p-3 text-base font-semibold text-black shadow-[6px_6px_0px_0px_var(--metis-orange-light)] md:text-lg">
           Review fast. Ship clean.
           <br />
-          Metis catches issues before they hit production.
+          NexusCoder catches issues before they hit production.
         </p>
         <div className="flex flex-col justify-center gap-6 md:flex-row">
           <a href="/login">

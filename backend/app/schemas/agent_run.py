@@ -58,3 +58,12 @@ class AgentRunDetailResponse(AgentRunListItemResponse):
     initial_user_message: str | None
     conversation: list[dict[str, Any]]
     final_result: dict[str, Any]
+
+
+class AgentApprovalResponse(BaseModel):
+    """提交 HITL 人工审批后的响应。"""
+
+    agent_run_id: UUID
+    celery_task_id: str
+    status: str
+    message: str

@@ -1,7 +1,7 @@
 """Issue -> PR 后台编码流程的 AgentRun 持久化模型。
 
-AgentRun 是整条链路的数据库锚点：API 创建它，Celery worker 更新执行状态，
-AgentLoop 的 token、Tool 调用与消息轨迹写回这里，最终再记录 Branch 和 PR 信息。
+AgentRun 是整条链路的数据库锚点:API 创建它,Celery worker 更新执行状态
+AgentLoop 的 token、Tool 调用与消息轨迹写回这里,最终再记录 Branch 和 PR 信息。
 """
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
@@ -41,6 +41,9 @@ class AgentRun(Base, BaseModel):
         Enum(
             "PENDING",
             "RUNNING",
+            # Multi-Agent 已执行完成，
+            # 当前暂停等待人工 Approve / Reject。
+            "WAITING_FOR_APPROVAL",
             "COMPLETED",
             "FAILED",
             "CANCELED",

@@ -219,3 +219,9 @@ cloud-sql-proxy
 # IDE
 .idea/
 **/.idea/
+
+
+backend/mock_workspace/
+
+
+.vscode/

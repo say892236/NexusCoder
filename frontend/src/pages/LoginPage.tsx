@@ -12,7 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const LoginPage = () => {
   useEffect(() => {
-    document.title = 'Metis — Login';
+    document.title = 'NexusCoder — Login';
   }, []);
 
   const handleLogin = () => {
@@ -52,7 +52,7 @@ export const LoginPage = () => {
       <Card className="relative z-10 w-full max-w-md border-2 border-black bg-white shadow-[10px_10px_0px_0px_var(--metis-orange-dark)]">
         <CardContent className="p-8">
           <div className="mb-6 text-center">
-            <h1 className="landing-display mb-2 text-4xl font-black">Metis</h1>
+            <h1 className="landing-display mb-2 text-4xl font-black">NexusCoder</h1>
           </div>
 
           <div className="mb-6 rounded border-2 border-black bg-[var(--metis-pastel-2)] p-4">

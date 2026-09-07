@@ -5,7 +5,17 @@ Redis 同时承担 broker 与 result backend：API 只投递轻量任务消息�
 """
 
 from celery import Celery, Task
-from celery.signals import task_failure, task_postrun, task_prerun, task_retry
+from celery.signals import (
+    task_failure,
+    task_postrun,
+    task_prerun,
+    task_retry,
+    worker_init,
+    worker_process_init,
+)
+from app.core.langsmith_tracing import (
+    configure_langsmith_tracing,
+)
 
 from app.core.config import settings
 
@@ -38,6 +48,28 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
+# =========================================================
+# LangSmith Tracing
+# =========================================================
+
+
+@worker_init.connect
+def configure_langsmith_for_worker(**kwargs):
+    """Worker 主进程启动时初始化 LangSmith。
+
+    主要覆盖 solo / threads 等运行模式。
+    """
+    configure_langsmith_tracing()
+
+
+@worker_process_init.connect
+def configure_langsmith_for_worker_process(**kwargs):
+    """每个实际执行任务的 Worker 子进程初始化 LangSmith。
+
+    prefork / Windows spawn 场景下，
+    每个 Worker Process 都拥有自己的 tracing 配置。
+    """
+    configure_langsmith_tracing()
 
 # 所有后台任务共用的重试基类。
 class BaseTask(Task):

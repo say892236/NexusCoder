@@ -8,7 +8,7 @@ import { Footer } from '@/components/landing/Footer';
 
 export const LandingPage: React.FC = () => {
   React.useEffect(() => {
-    document.title = 'Metis AI';
+    document.title = 'NexusCoder';
   }, []);
 
   return (

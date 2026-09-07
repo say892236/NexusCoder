@@ -1,1 +1,1 @@
-"""Metis AI Code Reviewer 后端应用包。"""
+"""NexusCoder 后端应用包。"""

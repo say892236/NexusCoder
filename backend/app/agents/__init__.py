@@ -1,4 +1,4 @@
-"""Metis AI Agent 系统。
+"""NexusCoder Agent 系统。
 
 提供 Code Review、Issue 处理与 PR 总结所需的自主 Agent、AgentLoop、Tool 和 Sandbox。
 """

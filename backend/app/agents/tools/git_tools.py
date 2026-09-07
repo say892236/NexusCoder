@@ -25,10 +25,23 @@ class GitStatusTool(BaseTool):
             },
         )
 
-    async def execute(self, path: str = "workspace/repo", **kwargs) -> ToolResult:
-        """通过 ``Daytona git.status()`` 执行 Git status。"""
+    async def execute(
+        self,
+        path: str = "workspace/repo",
+        **kwargs,
+    ) -> ToolResult:
+        """读取 Repository 当前 Git 状态。"""
+
         try:
             status = self.sandbox.git.status(path)
+
+            # 兼容不同 Sandbox：
+            # - Daytona 可能返回带 .name 的状态对象
+            # - MockSandbox 当前返回文件路径字符串
+            modified_files = [
+                file_status if isinstance(file_status, str) else file_status.name
+                for file_status in (status.file_status or [])
+            ]
 
             return ToolResult(
                 success=True,
@@ -36,11 +49,15 @@ class GitStatusTool(BaseTool):
                     "current_branch": status.current_branch,
                     "ahead": status.ahead,
                     "behind": status.behind,
-                    "modified_files": [f.name for f in status.file_status],
+                    "modified_files": modified_files,
                 },
             )
+
         except Exception as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(
+                success=False,
+                error=str(e),
+            )
 
 
 class GitCreateBranchTool(BaseTool):
@@ -194,7 +211,7 @@ class GitCommitTool(BaseTool):
                     },
                 )
 
-        # 默认沿用编排层预先配置的 Git 身份，避免无意覆盖作者元数据。
+            # 默认沿用编排层预先配置的 Git 身份，避免无意覆盖作者元数据。
             response = self.sandbox.process.exec(
                 command=f"git commit -m {json.dumps(message)}",
                 cwd=path,

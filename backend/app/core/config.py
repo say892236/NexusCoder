@@ -5,14 +5,23 @@
 
 import os
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+load_dotenv()
 
 class Settings(BaseSettings):
     """从环境变量加载并校验的应用配置。"""
 
+    # Multi Agent 开发阶段使用 Mock Sandbox
+    MOCK_SANDBOX: bool = True
+
+    #mock llm
+    MOCK_LLM: bool = True
+
+
     # 应用基本信息。
-    app_name: str = "Metis AI Code Reviewer"
+    app_name: str = "NexusCoder"
     version: str = "0.1.0"
     debug: bool = False
 
@@ -29,13 +38,25 @@ class Settings(BaseSettings):
     GITHUB_WEBHOOK_SECRET: str | None = None
     GITHUB_INSTALLATION_ID: int | None = None
 
-    # LLM Provider：使用 LiteLLM 模型格式，例如 ``vertex_ai/...`` 或 ``gpt-4o``。
+    # LLM Provider：使用 LiteLLM 模型格式
     # Provider 列表见 https://docs.litellm.ai/docs/providers 。
-    MODEL_NAME: str = "vertex_ai/zai-org/glm-4.7-maas"
+    MODEL_NAME: str = "deepseek/deepseek-v4-flash"
+    DEEPSEEK_API_KEY: str | None = None
 
-    # Vertex AI 配置；Google Cloud 模型通过 gcloud CLI 的 ADC 认证。
-    VERTEX_PROJECT: str | None = None
-    VERTEX_LOCATION: str | None = None
+    # Memory Embedding 配置。
+    MEMORY_EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
+    MEMORY_EMBEDDING_DIMENSIONS: int = 1536
+
+    # 开发 / 测试阶段使用确定性的 Mock Embedding，
+    # 避免测试依赖真实外部 API。
+    MOCK_EMBEDDING: bool = True
+
+    OPENAI_API_KEY: str | None = None
+
+        # Semantic Recall 最大余弦距离。
+    # cosine distance 越小表示越相似。
+    MEMORY_MAX_COSINE_DISTANCE: float = 0.8
+
 
     # 数据库配置。
     DATABASE_URL: str
@@ -73,7 +94,7 @@ class Settings(BaseSettings):
     DAYTONA_TARGET: str
 
     # LangSmith tracing 配置。
-    LANGSMITH_TRACING: bool = True
+    LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: str | None = None
     LANGSMITH_ENDPOINT: str | None = None
     LANGSMITH_PROJECT: str | None = None
@@ -85,15 +106,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-    # 导出 Vertex AI 环境变量，供 LiteLLM 自动识别。
-if settings.VERTEX_PROJECT:
-    os.environ["VERTEXAI_PROJECT"] = settings.VERTEX_PROJECT
-if settings.VERTEX_LOCATION:
-    os.environ["VERTEXAI_LOCATION"] = settings.VERTEX_LOCATION
-
     # 导出 LangSmith 环境变量，供其 SDK 读取。
 if settings.LANGSMITH_TRACING:
     os.environ["LANGSMITH_TRACING"] = "true"
+    os.environ["LANGSMITH_TRACING_V2"] = "true"
 if settings.LANGSMITH_API_KEY:
     os.environ["LANGSMITH_API_KEY"] = settings.LANGSMITH_API_KEY
 if settings.LANGSMITH_PROJECT:

@@ -35,29 +35,40 @@ class ReviewAgent(BaseAgent):
             **kwargs: 传给 BaseAgent 的预算等附加参数
         """
         # system Prompt 定义审查标准、输出约束和 Tool 使用方式。
-        system_prompt = build_reviewer_prompt(
-            sensitivity=sensitivity,
-            custom_instructions=custom_instructions,
-            ignore_patterns=ignore_patterns,
-        )
+        system_prompt = build_reviewer_prompt()
 
         # 首条用户消息提供本次 PR 的具体上下文和 diff。
-        initial_user_message = f"""# Pull Request Review
+        review_config = f"""# Review Configuration
+
+Sensitivity: {sensitivity}
+
+Custom Instructions:
+{custom_instructions or "No additional instructions."}
+
+Ignore Patterns:
+{", ".join(ignore_patterns) if ignore_patterns else "None"}
+"""
+
+        initial_user_message = f"""{review_config}
+
+# Change Context
 
 **Title**: {pr_title}
 
 **Description**:
 {pr_description}
 
-**Diff**:
+## Branch Diff
+
 ```diff
 {pr_diff}
-```
+        ---
 
----
-
-Begin your code review. Use your tools to gather context, verify behavior, and analyze the changes thoroughly. When complete, call `finish_review()` with your review.
-"""
+        Task
+        Review the current implementation using the available repository and verification tools.
+        Determine whether there are any concrete blocking problems.
+        When the review is complete, call finish_review() with the final verdict and actionable summary.
+        """.strip()
 
         # 复用 BaseAgent 的 LLM/Tool Calling 循环。
         super().__init__(

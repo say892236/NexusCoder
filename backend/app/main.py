@@ -5,6 +5,9 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.langsmith_tracing import (
+    configure_langsmith_tracing,
+)
 
 from app.api import (
     agents,
@@ -19,6 +22,10 @@ from app.core.config import settings
 
 
 def create_application() -> FastAPI:
+
+    configure_langsmith_tracing()
+
+
     """创建并配置 FastAPI 应用。"""
     app = FastAPI(
         title=settings.app_name,

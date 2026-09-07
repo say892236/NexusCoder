@@ -1,6 +1,6 @@
-# Contributing to Metis
+# Contributing to NexusCoder
 
-Thank you for considering a contribution to Metis. This guide defines the baseline workflow and quality expectations for all changes.
+Thank you for considering a contribution to NexusCoder. This guide defines the baseline workflow and quality expectations for all changes.
 
 ## Ground Rules
 - Keep changes focused and scoped to one clear outcome.
@@ -103,4 +103,4 @@ pnpm build
 - Open a GitHub issue with `question` context.
 - For design or architecture proposals, open a discussion-style issue first.
 
-We are accepting contributions and appreciate all high-quality improvements to Metis.
+We are accepting contributions and appreciate all high-quality improvements to NexusCoder.

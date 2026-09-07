@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -38,7 +38,7 @@ def setup_agent_logger(agent_id: str, log_dir: str = "logs/agents") -> logging.L
     class JSONFormatter(logging.Formatter):
         def format(self, record):
             log_data = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "level": record.levelname,
                 "agent_id": agent_id,
                 "message": record.getMessage(),

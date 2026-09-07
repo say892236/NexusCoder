@@ -15,7 +15,7 @@ from app.core.config import settings
 
 
 class GitHubService:
-    """封装 Metis 所需 GitHub API 的异步服务。"""
+    """封装 NexusCoder 所需 GitHub API 的异步服务。"""
 
     def __init__(self) -> None:
         """初始化 GitHub API 客户端并加载 App 私钥。"""

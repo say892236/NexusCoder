@@ -19,13 +19,17 @@ from app.models.agent_run import AgentRun
 from app.models.installation import Installation
 from app.models.user import User
 from app.schemas.agent_run import (
+    AgentApprovalResponse,
     AgentRunDetailResponse,
     AgentRunListItemResponse,
     LaunchAgentRequest,
     LaunchAgentResponse,
 )
 from app.services.github import GitHubService
-from app.tasks.background_agent_task import process_issue_with_agent
+from app.tasks.background_agent_task import (
+    process_issue_with_agent,
+    resume_issue_after_approval,
+)
 
 router = APIRouter(prefix="/agents")
 
@@ -84,7 +88,7 @@ async def launch_agent(
             and_(
                 Installation.repository == repository,
                 Installation.user_id == current_user.id,
-                Installation.is_active == True,  # noqa: E712；SQLAlchemy 表达式不能写成普通布尔判断
+                Installation.is_active.is_(True),
             )
         )
     )
@@ -92,7 +96,7 @@ async def launch_agent(
     if not installation:
         raise HTTPException(
             status_code=404,
-            detail=f"Repository {repository} not found or not enrolled in Metis.",
+            detail=f"Repository {repository} not found or not enrolled in NexusCoder.",
         )
 
     owner, repo = repository.split("/")
@@ -193,3 +197,94 @@ async def get_agent_run(
         raise HTTPException(status_code=404, detail="Agent run not found.")
 
     return _to_detail(run)
+
+async def _submit_human_decision(
+    *,
+    agent_run_id: UUID,
+    approved: bool,
+    current_user: User,
+    db: AsyncSession,
+) -> AgentApprovalResponse:
+    """提交一次 HITL 人工审批结果。"""
+
+    run = (
+        (
+            await db.execute(
+                select(AgentRun).where(
+                    and_(
+                        AgentRun.id == agent_run_id,
+                        AgentRun.user_id == current_user.id,
+                    )
+                )
+            )
+        )
+        .scalars()
+        .one_or_none()
+    )
+
+    if not run:
+        raise HTTPException(
+            status_code=404,
+            detail="Agent run not found.",
+        )
+
+    if run.status != "WAITING_FOR_APPROVAL":
+        raise HTTPException(
+            status_code=409,
+            detail=("Agent run is not waiting for human approval."),
+        )
+
+    task = resume_issue_after_approval.delay(
+        agent_run_id=str(run.id),
+        approved=approved,
+    )
+
+    # 防止用户重复点击 Approve / Reject。
+    run.status = "RUNNING"
+    run.celery_task_id = task.id
+
+    await db.commit()
+
+    return AgentApprovalResponse(
+        agent_run_id=run.id,
+        celery_task_id=task.id,
+        status="RUNNING",
+        message=("Approval submitted." if approved else "Rejection submitted."),
+    )
+
+@router.post(
+    "/{agent_run_id}/approve",
+    response_model=AgentApprovalResponse,
+)
+async def approve_agent_run(
+    agent_run_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AgentApprovalResponse:
+    """人工批准 AgentRun，恢复 LangGraph 并继续创建 PR。"""
+
+    return await _submit_human_decision(
+        agent_run_id=agent_run_id,
+        approved=True,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.post(
+    "/{agent_run_id}/reject",
+    response_model=AgentApprovalResponse,
+)
+async def reject_agent_run(
+    agent_run_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AgentApprovalResponse:
+    """人工拒绝 AgentRun，不再创建 PR。"""
+
+    return await _submit_human_decision(
+        agent_run_id=agent_run_id,
+        approved=False,
+        current_user=current_user,
+        db=db,
+    )

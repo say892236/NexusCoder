@@ -26,16 +26,16 @@ def _see_more_footer_markdown() -> str:
     base_url = (settings.FRONTEND_URL or "http://localhost:5173").rstrip("/")
     target_url = f"{base_url}/dashboard/analytics"
 
-    # SVG badge（Shields）使用 Metis 配色并兼顾可读性。
+    # SVG badge（Shields）使用 NexusCoder 配色并兼顾可读性。
     # labelColor 为近黑色，color 为暖橙色。
     badge_url = (
         "https://img.shields.io/badge/"
-        "METIS-SEE%20MORE%20DETAILS-FF9F1C"
+        "NEXUSCODER-SEE%20MORE%20DETAILS-FF9F1C"
         "?style=for-the-badge&labelColor=111111&logo=github&logoColor=FFFFFF"
     )
     return (
         f'<a href="{target_url}">'
-        f'<img src="{badge_url}" alt="METIS: See More Details" width="260" />'
+        f'<img src="{badge_url}" alt="NEXUSCODER: See More Details" width="260" />'
         "</a>"
     )
 

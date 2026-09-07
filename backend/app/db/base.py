@@ -1,7 +1,12 @@
 """异步数据库 engine、session factory 与 ORM Base。"""
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import declarative_base
 
 from app.core.config import settings
 
@@ -15,13 +20,11 @@ engine: AsyncEngine = create_async_engine(
 )
 
 # 创建供 API 与 Celery task 复用的异步 session factory。
-AsyncSessionLocal = sessionmaker(
-    engine,
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
-    autocommit=False,
     autoflush=False,
 )
-
 # 创建所有 ORM model 共享的 declarative Base。
 Base = declarative_base()

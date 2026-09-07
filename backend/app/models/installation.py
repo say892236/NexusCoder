@@ -1,6 +1,6 @@
 """GitHub App Installation 模型。
 
-每条记录表示 Metis GitHub App 在特定 Repository 或组织中的一次 Installation，并保存
+每条记录表示 NexusCoder GitHub App 在特定 Repository 或组织中的一次 Installation，并保存
 GitHub Installation ID 与 JSON 格式的 Review 配置，如敏感度和自定义规则。
 """
 

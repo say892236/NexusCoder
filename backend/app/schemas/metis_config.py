@@ -1,6 +1,6 @@
-"""Metis AI Agent 的配置 schema。
+"""NexusCoder Agent 的配置 schema。
 
-定义 Review Agent 与 Summary Agent 的配置，包括敏感度和 LLM 参数。
+定义 Review Agent 与 Summary Agent 的配置,包括敏感度和 LLM 参数。
 """
 
 from enum import Enum

@@ -18,7 +18,7 @@ export const DashboardLayout: React.FC = () => {
   const displayPage = currentPage === 'dashboard' ? 'Dashboard' : currentPage.replace('-', ' ');
 
   React.useEffect(() => {
-    const title = `Metis — ${displayPage
+    const title = `NexusCoder — ${displayPage
       .split(' ')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')}`;

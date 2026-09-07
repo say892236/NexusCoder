@@ -9,6 +9,7 @@ from typing import Any
 import litellm
 
 from app.core.config import settings
+from app.core.mock_client import MockLLM
 
 # 配置 LiteLLM 全局行为。
 litellm.drop_params = True
@@ -54,10 +55,13 @@ class LiteLLMClient:
         self.chat = _Chat()
 
 
-def get_llm_client() -> LiteLLMClient:
-    """返回由 LiteLLM 驱动的 OpenAI 兼容客户端。
+def get_llm_client():
 
-    Returns:
-        LiteLLMClient 实例
-    """
+    if settings.MOCK_LLM:
+
+        print("🤖 使用 Mock LLM")
+
+        return MockLLM()
+
+
     return LiteLLMClient()
