@@ -6,17 +6,24 @@ export const Footer: React.FC = () => {
     <footer id="contact" className="relative overflow-hidden bg-black pt-24 pb-0">
       <div className="relative z-10 container mx-auto px-4">
         <div className="mb-12 flex flex-col items-center justify-center gap-6">
-          <p className="text-center text-sm font-semibold tracking-tight text-white">
-            Made by{' '}
-            <span className="inline-block -rotate-2 transform cursor-default border-2 border-white bg-[var(--metis-pastel-orange)] px-2 py-0.5 text-black shadow-[2px_2px_0px_0px_var(--metis-red)]">
-              Kacem Mathlouthi
-            </span>{' '}
-            with 💗
-          </p>
+          <div className="text-center text-sm font-semibold tracking-tight text-white">
+            <p>NexusCoder</p>
+            <p>
+              Based on{' '}
+              <a
+                href="https://github.com/KacemMathlouthi/metis"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block -rotate-2 transform border-2 border-white bg-[var(--metis-pastel-orange)] px-2 py-0.5 text-black shadow-[2px_2px_0px_0px_var(--metis-red)] hover:underline"
+              >
+                Metis by Kacem Mathlouthi
+              </a>
+            </p>
+          </div>
 
           <div className="flex flex-wrap justify-center gap-4">
             <a
-              href="https://github.com/KacemMathlouthi"
+              href="https://github.com/say892236/NexusCoder"
               target="_blank"
               rel="noopener noreferrer"
               className="group relative inline-flex items-center gap-2 border-2 border-white bg-black px-4 py-2 text-xs font-semibold text-white shadow-[2px_2px_0px_0px_var(--metis-red)] transition-all hover:translate-x-0.5 hover:-translate-y-0.5 hover:bg-white hover:text-black hover:shadow-none"
@@ -46,7 +53,7 @@ export const Footer: React.FC = () => {
             letterSpacing: '0.02em',
           }}
         >
-          METIS
+          NEXUSCODER
         </h2>
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/50 to-transparent" />
       </div>

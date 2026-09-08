@@ -43,7 +43,7 @@ class DaytonaClient:
             command=(
                 'git config user.name "NexusCoder" '
                 '&& '
-                'git config user.email "metis-ai@example.com"'
+                'git config user.email "nexuscoder-ai@example.com"'
             ),
             cwd="workspace/repo",
             timeout=30,

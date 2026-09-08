@@ -7,8 +7,8 @@ NexusCoder is under active development. Security fixes are applied to the latest
 Please do not open public issues for security vulnerabilities.
 
 Report privately by contacting the maintainer:
-- GitHub: `@KacemMathlouthi`
-- Repository: `https://github.com/KacemMathlouthi/metis`
+- GitHub: `@say892236`
+- Repository: `https://github.com/say892236/NexusCoder`
 
 Include:
 - Vulnerability description and impact

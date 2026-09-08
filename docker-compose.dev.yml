@@ -68,7 +68,7 @@ services:
       GITHUB_SECRET_KEY_PATH: /app/private-key.pem
       GOOGLE_APPLICATION_CREDENTIALS: /gcp/creds.json
     volumes:
-      - ./backend/metis-ai-testing.2025-11-21.private-key.pem:/app/private-key.pem:ro
+      - ./backend/private-key.pem:/app/private-key.pem:ro
       - ./backend/secrets/gcp-sa.json:/gcp/creds.json:ro
     ports:
       - '8000:8000'
@@ -106,7 +106,7 @@ services:
       GITHUB_SECRET_KEY_PATH: /app/private-key.pem
       GOOGLE_APPLICATION_CREDENTIALS: /gcp/creds.json
     volumes:
-      - ./backend/metis-ai-testing.2025-11-21.private-key.pem:/app/private-key.pem:ro
+      - ./backend/private-key.pem:/app/private-key.pem:ro
       - ./backend/secrets/gcp-sa.json:/gcp/creds.json:ro
     depends_on:
       postgres:

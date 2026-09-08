@@ -14,4 +14,4 @@ logs
 .gitignore
 README.md
 tests
-metis-ai-testing.2025-11-21.private-key.pem
+*.pem

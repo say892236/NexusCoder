@@ -90,7 +90,7 @@ export const AppSidebar: React.FC = () => {
             M
           </div>
           <span className="landing-display text-xl font-black tracking-tighter group-data-[collapsible=icon]:hidden">
-            METIS
+            NEXUSCODER
           </span>
         </div>
         <SidebarMenu>

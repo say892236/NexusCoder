@@ -1,11 +1,11 @@
-# Metis 项目全景说明
+# NexusCoder 项目全景说明
 
 > 扫描日期：2026-08-19  
 > 本文只做现状梳理，不代表已经修改、重构或验证了业务运行结果。
 
-## 先用一句话理解 Metis
+## 先用一句话理解 NexusCoder
 
-Metis 目前首先是一个 **GitHub App 形态的 AI Code Review 平台**，同时已经包含一条可用雏形的 **GitHub Issue → Coding Agent → Pull Request** 流程。
+NexusCoder 目前首先是一个 **GitHub App 形态的 AI Code Review 平台**，同时已经包含一条可用雏形的 **GitHub Issue → Coding Agent → Pull Request** 流程。
 
 如果要把它二次开发成“面向企业研发工单的 Coding Agent Runtime”，最有价值的不是现有的宣传页或 Review Dashboard，而是下面这条主干：
 
@@ -34,19 +34,19 @@ Metis 目前首先是一个 **GitHub App 形态的 AI Code Review 平台**，同
 
 ### 关于 `daytona/`
 
-`daytona/` 不是 Metis 自己维护的目录，而是一个 Git submodule：
+`daytona/` 不是 NexusCoder 自己维护的目录，而是一个 Git submodule：
 
 - 上游：`https://github.com/daytonaio/daytona.git`
 - 当前固定提交：`847f154bcb9dbba11c31d173f3f40b1f22502556`
 - 当前工作区没有初始化 submodule，所以目录为空，无法对该固定提交做本地逐文件审计。
-- Metis 实际运行时通过 `backend/pyproject.toml` 中的 Python 包 `daytona>=0.125.0` 使用 Daytona SDK。
-- Metis 自己真正需要理解的适配代码在 `backend/app/agents/sandbox/client.py` 和 `manager.py`。
+- NexusCoder 实际运行时通过 `backend/pyproject.toml` 中的 Python 包 `daytona>=0.125.0` 使用 Daytona SDK。
+- NexusCoder 自己真正需要理解的适配代码在 `backend/app/agents/sandbox/client.py` 和 `manager.py`。
 
 这意味着：如果后续不准备自托管 Daytona，根目录 submodule 很可能不是运行必需项；但 Daytona SDK 适配层仍然是 Coding Agent Runtime 的核心。
 
 ## 业务背景
 
-Metis 面向使用 GitHub 协作的研发团队，当前有两条相互独立但共用 Agent Runtime 的业务线。
+NexusCoder 面向使用 GitHub 协作的研发团队，当前有两条相互独立但共用 Agent Runtime 的业务线。
 
 ### 业务线一：自动 PR Review
 
@@ -408,7 +408,7 @@ process_issue_with_agent.delay(...)
 - `static/`。
 - `backend/uv.lock`、`frontend/pnpm-lock.yaml`：不要手读，依赖问题时查询即可。
 - `backend/.venv/`、`backend/.idea/`、缓存、构建产物。
-- `daytona/` submodule 的完整上游源码；先看 Metis 的两层 SDK 适配。
+- `daytona/` submodule 的完整上游源码；先看 NexusCoder 的两层 SDK 适配。
 - GCP 部署 Workflow；确定部署平台后再处理。
 - Analytics 的图表细节；它不是 Coding Agent Runtime 的主干。
 

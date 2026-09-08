@@ -266,7 +266,7 @@ async def _process_issue_with_agent_async(
                 f"git config user.name "
                 f"{shlex.quote('NexusCoder')} && "
                 f"git config user.email "
-                f"{shlex.quote('ai@metis.dev')} && "
+                f"{shlex.quote('nexuscoder-ai@example.com')} && "
                 f"git remote set-url origin "
                 f"{shlex.quote(push_url)}"
             )

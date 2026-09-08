@@ -9,7 +9,7 @@ export const Navbar: React.FC = () => {
         <div className="flex h-12 w-12 items-center justify-center border-4 border-black bg-gradient-to-br from-[var(--metis-yellow)] via-[var(--metis-orange-light)] to-[var(--metis-red)] text-2xl font-black text-white shadow-[4px_4px_0px_0px_#000]">
           M
         </div>
-        <h1 className="landing-display text-4xl font-black tracking-tighter">METIS</h1>
+        <h1 className="landing-display text-4xl font-black tracking-tighter">NEXUSCODER</h1>
       </div>
       <div className="hidden gap-4 md:flex">
         <a href="#features" className="font-bold decoration-4 underline-offset-4 hover:underline">

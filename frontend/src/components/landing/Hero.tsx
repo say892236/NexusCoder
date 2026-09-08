@@ -19,12 +19,12 @@ export const Hero: React.FC = () => {
         <Badge className="mb-6 rotate-[-2deg] border-2 border-black bg-white text-black shadow-[4px_4px_0px_0px_var(--metis-orange)]">
           OPEN SOURCE -{' '}
           <a
-            href="https://github.com/KacemMathlouthi/metis"
+            href="https://github.com/say892236/NexusCoder"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline"
           >
-            KacemMathlouthi/metis
+            say892236/NexusCoder
           </a>
         </Badge>
         <h1 className="landing-display-tight mb-8 text-6xl leading-none font-black md:text-8xl">

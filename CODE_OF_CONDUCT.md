@@ -24,8 +24,8 @@ This Code of Conduct applies within all project spaces and in public spaces when
 
 ## Reporting
 To report unacceptable behavior, contact the maintainer through:
-- GitHub: `@KacemMathlouthi`
-- Repository: `https://github.com/KacemMathlouthi/metis`
+- GitHub: `@say892236`
+- Repository: `https://github.com/say892236/NexusCoder`
 
 All reports will be reviewed and investigated promptly and fairly.
 

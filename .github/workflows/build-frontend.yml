@@ -13,7 +13,7 @@ env:
   REGION: ${{ secrets.GCP_REGION }}
   REPOSITORY: metis
   IMAGE_NAME: metis-frontend
-  VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.getmetis.tech' }}
+  VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
 jobs:
   build-and-push:
