@@ -228,19 +228,24 @@ Issue → AgentRun → Celery → Sandbox → Branch → Code/Test/Review
 
 ## Real GitHub E2E
 
-项目已经完成过一次真实的 Issue → PR 全链路验证。该次验证使用真实 GitHub 流程和 Daytona Sandbox，完成了：
+项目曾在真实 GitHub 测试仓库中成功创建 Pull Request。
 
-- 从 GitHub Issue 启动后台任务；
-- clone Repository 并召回 Repository-scoped Memory；
-- Coder 定位并修复 Python 空列表导致的 `ZeroDivisionError`；
-- 创建 Branch、修改文件、执行 pytest、Commit 并 Push；
-- Tester 独立执行测试并通过；
-- Reviewer 返回 `APPROVE`；
-- Workflow 进入 `WAITING_FOR_APPROVAL`；
-- 人工批准后通过 PostgreSQL Checkpoint 恢复；
-- 最终创建 GitHub Pull Request。
+- PR：https://github.com/say892236/kaixin/pull/2
+- 执行账号：nexuscoder-ai[bot]
+- 修复内容：解决 `calculate_average()` 在空列表输入时的 ZeroDivisionError。
+- 实际产物：修复分支、代码提交和 GitHub PR。
+- 测试记录：PR 描述中记录 pytest 2 passed。
 
-这里不公开测试 Repository、用户、Installation、AgentRun ID 或其他私人测试数据。该记录证明这条链路曾经端到端跑通，但不代表当前任意提交、任意 Repository 或任意任务都必然成功。
+### HITL 与恢复验证
+
+- Mock 人工审批测试：通过。
+- Celery 恢复业务逻辑 Mock 测试：通过。
+- PostgreSQL Checkpoint 持久化恢复：真实数据库集成测试通过。
+
+以上验证分别证明了对应模块的功能。
+
+历史 PR 已确认创建成功，但不能仅凭 PR 页面证明所有内部执行步骤。
+最新 HITL 逻辑的真实 Celery Worker → GitHub PR 完整回归测试尚未执行。
 
 ## Project Structure
 
@@ -402,10 +407,15 @@ corepack pnpm dev
 
 ### Validated
 
-- 曾完成一次真实 GitHub Issue → Daytona → Multi-Agent → HITL → PostgreSQL resume → Pull Request E2E。
-- Real LLM Evaluation v1 的两个 representative cases 已记录为 2/2 通过；这不是大规模 Benchmark。
-- 重新运行了 18 个不需要真实 Secret 的核心测试，结果为 `18 passed, 0 failed, 19 warnings`；Multi-Agent、HITL、Evaluation Runner、Supervisor、Evaluation metrics 和 Memory extractor 等核心测试均已通过。
-- 19 个 warning 主要来自 `pytest-asyncio` 弃用提示与 pytest cache 写入提示，不属于测试失败。
+- 历史真实 GitHub 验证：通过 GitHub App Bot 成功创建 PR #2，包含真实代码提交与文件变更。
+  - PR：https://github.com/say892236/kaixin/pull/2
+- 常规 pytest 测试：36 passed，1 skipped。
+- HITL Mock 人工审批测试：通过。
+- Celery 恢复业务逻辑 Mock 测试：通过。
+- PostgreSQL Checkpoint 持久化恢复集成测试：1 passed，使用真实 PostgreSQL。
+- Real LLM Evaluation v1：两个代表性案例 2/2 通过，使用真实 LLM 和 MockSandbox。
+
+以上结果按各自测试范围记录。最新 HITL 恢复逻辑的真实 Celery Worker → GitHub PR 完整端到端回归测试尚未执行，不能将 Mock 测试视为真实链路验证。
 
 ### Known Limitations
 
